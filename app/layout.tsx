@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
+import { SiteFooter } from "@/components/site-footer";
 import { getSiteUrl } from "@/lib/site-url";
 
 import "./globals.css";
@@ -50,9 +51,12 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${inter.variable} min-h-screen bg-slate-950 font-sans text-slate-50 antialiased`}
+        className={`${inter.variable} min-h-screen bg-zinc-950 font-sans text-zinc-50 antialiased`}
       >
-        {children}
+        <div className="flex min-h-screen flex-col">
+          <div className="flex-1">{children}</div>
+          <SiteFooter />
+        </div>
       </body>
     </html>
   );

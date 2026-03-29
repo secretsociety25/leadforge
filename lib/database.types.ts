@@ -29,6 +29,7 @@ export type Database = {
           monthly_lead_quota_override: number | null;
           tier_expires_at: string | null;
           billing_currency: string | null;
+          referred_by_affiliate_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -41,6 +42,7 @@ export type Database = {
           monthly_lead_quota_override?: number | null;
           tier_expires_at?: string | null;
           billing_currency?: string | null;
+          referred_by_affiliate_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -53,6 +55,64 @@ export type Database = {
           monthly_lead_quota_override?: number | null;
           tier_expires_at?: string | null;
           billing_currency?: string | null;
+          referred_by_affiliate_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      affiliates: {
+        Row: {
+          id: string;
+          user_id: string;
+          referral_code: string;
+          total_earnings_minor: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          referral_code: string;
+          total_earnings_minor?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          referral_code?: string;
+          total_earnings_minor?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      affiliate_commissions: {
+        Row: {
+          id: string;
+          affiliate_id: string;
+          referred_user_id: string;
+          payment_intent_id: string;
+          amount_paid_minor: number;
+          commission_minor: number;
+          currency: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          affiliate_id: string;
+          referred_user_id: string;
+          payment_intent_id: string;
+          amount_paid_minor: number;
+          commission_minor: number;
+          currency: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          affiliate_id?: string;
+          referred_user_id?: string;
+          payment_intent_id?: string;
+          amount_paid_minor?: number;
+          commission_minor?: number;
+          currency?: string;
           created_at?: string;
         };
         Relationships: [];

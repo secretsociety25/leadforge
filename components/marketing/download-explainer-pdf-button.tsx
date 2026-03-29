@@ -3,12 +3,11 @@
 import { FileDown, Loader2 } from "lucide-react";
 import { useCallback, useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Props = {
   className?: string;
-  /** Extra classes for the button element */
+  /** Extra classes merged onto the primary button (optional overrides) */
   buttonClassName?: string;
   /** Visible label */
   label?: string;
@@ -57,37 +56,26 @@ export function DownloadExplainerPdfButton({
     }
   }, []);
 
-  const customLook = Boolean(buttonClassName);
-
   return (
     <div className={cn("flex w-full max-w-md flex-col items-center gap-2 sm:max-w-lg", className)}>
-      <Button
+      <button
         type="button"
-        size="lg"
-        variant={customLook ? "ghost" : "secondary"}
-        className={cn(
-          "h-12 min-h-[48px] w-full gap-2 text-base font-semibold sm:w-auto sm:min-w-[280px]",
-          customLook
-            ? cn(
-                "border-0 bg-transparent p-0 shadow-none hover:bg-transparent [&_svg]:size-5",
-                buttonClassName,
-              )
-            : "border-2 border-teal-500/50 bg-slate-900/90 px-8 text-white shadow-lg shadow-teal-950/30 transition hover:border-teal-400/70 hover:bg-slate-800 hover:text-white",
-        )}
         disabled={loading}
+        aria-busy={loading}
+        className={cn("lf-marketing-primary w-full sm:w-auto sm:min-w-[280px]", buttonClassName)}
         onClick={() => void onDownload()}
       >
         {loading ? (
-          <Loader2 className="size-5 animate-spin" aria-hidden />
+          <Loader2 className="size-5 shrink-0 animate-spin" aria-hidden />
         ) : (
           <FileDown className="size-5 shrink-0" aria-hidden />
         )}
         {label}
-      </Button>
+      </button>
       <a
         href={PDF_PATH}
         download="LeadForge-Explainer.pdf"
-        className="text-center text-xs text-slate-500 underline-offset-2 hover:text-teal-400/90 hover:underline"
+        className="text-center text-xs text-zinc-500 underline-offset-2 transition hover:text-violet-400/90 hover:underline"
       >
         Direct download link (if the button doesn’t start a download)
       </a>

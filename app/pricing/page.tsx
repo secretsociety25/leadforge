@@ -8,11 +8,13 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: "Starter, Pro, and Enterprise plans for B2B lead generation.",
+  description:
+    "LeadForge plans from $79/mo — AI research, personalized drafts, and verified deliverability. Most teams choose Pro.",
   alternates: { canonical: "/pricing" },
   openGraph: {
     title: "Pricing — LeadForge by MTDFIX",
-    description: "Starter, Pro, and Enterprise plans for B2B lead generation.",
+    description:
+      "Premium B2B outbound: Starter, Pro, and Enterprise. Replace manual research with AI.",
     url: "/pricing",
   },
 };
@@ -162,28 +164,59 @@ export default async function PricingPage({
               margin: "0 0 0.75rem",
             }}
           >
-            Plans
+            Pricing
           </p>
-          <h1 style={{ fontSize: "2.25rem", margin: "0 0 0.75rem", fontWeight: 650 }}>
-            Simple tiers. Serious pipeline.
+          <h1 style={{ fontSize: "2.35rem", margin: "0 0 0.85rem", fontWeight: 700, letterSpacing: "-0.02em" }}>
+            Pipeline software that pays for itself
           </h1>
           <p
             style={{
+              margin: "0 0 1rem",
+              color: "rgba(250,250,250,0.62)",
+              maxWidth: 620,
+              marginLeft: "auto",
+              marginRight: "auto",
+              lineHeight: 1.65,
+              fontSize: "1.05rem",
+            }}
+          >
+            <strong style={{ color: "#f4f4f5" }}>Replace hours of manual research with AI.</strong>{" "}
+            <strong style={{ color: "#f4f4f5" }}>Better than hiring a junior SDR</strong> — always on,
+            on-brand, and built for B2B teams that care about deliverability.
+          </p>
+          <p
+            style={{
+              margin: "0 0 1.25rem",
+              padding: "0.65rem 1rem",
+              borderRadius: 999,
+              display: "inline-block",
+              background: "rgba(124, 58, 237, 0.18)",
+              border: "1px solid rgba(167, 139, 250, 0.35)",
+              color: "#e9d5ff",
+              fontSize: "0.82rem",
+              fontWeight: 600,
+              letterSpacing: "0.02em",
+            }}
+          >
+            Most teams choose Pro — see why below
+          </p>
+          <p
+            style={{
               margin: 0,
-              color: "rgba(250,250,250,0.55)",
-              maxWidth: 560,
+              color: "rgba(250,250,250,0.5)",
+              maxWidth: 600,
               marginLeft: "auto",
               marginRight: "auto",
               lineHeight: 1.6,
+              fontSize: "0.9rem",
             }}
           >
-            <strong style={{ color: "#fafafa" }}>Starter $49</strong>,{" "}
-            <strong style={{ color: "#fafafa" }}>Pro $99</strong>,{" "}
-            <strong style={{ color: "#fafafa" }}>Enterprise $249</strong> / month USD list.
-            Pay in <strong style={{ color: "#fafafa" }}>AED</strong>,{" "}
-            <strong style={{ color: "#fafafa" }}>GBP</strong>, or{" "}
-            <strong style={{ color: "#fafafa" }}>EUR</strong>. Annual = {ANNUAL_MONTHS_CHARGED}{" "}
-            months billed. Checkout via Ziina.
+            <strong style={{ color: "#fafafa" }}>Starter $79</strong>,{" "}
+            <strong style={{ color: "#fafafa" }}>Pro $149</strong>,{" "}
+            <strong style={{ color: "#fafafa" }}>Enterprise $349</strong> / month USD list · Annual
+            billing = {ANNUAL_MONTHS_CHARGED} months (two months on us). Pay in{" "}
+            <strong style={{ color: "#fafafa" }}>AED</strong>, <strong style={{ color: "#fafafa" }}>GBP</strong>
+            , or <strong style={{ color: "#fafafa" }}>EUR</strong> at checkout (Ziina).
           </p>
         </header>
 

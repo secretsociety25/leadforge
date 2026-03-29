@@ -25,10 +25,10 @@ export default async function DashboardLayout({
 
   return (
     <div
-      className="min-h-screen font-sans"
+      className="min-h-screen bg-zinc-950 font-sans"
       style={{
         background:
-          "radial-gradient(120% 80% at 50% -20%, rgba(120, 80, 200, 0.18), transparent 55%), #09090b",
+          "radial-gradient(120% 80% at 50% -20%, rgba(120, 80, 200, 0.14), transparent 55%), rgb(9 9 11)",
       }}
     >
       <DashboardSidebar

@@ -1,8 +1,24 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { AFFILIATE_REF_COOKIE } from "@/lib/affiliate/constants";
 import type { Database } from "@/lib/database.types";
 import { getSupabaseCookieOptions } from "@/lib/supabase/cookie-options";
+
+const REF_CODE_RE = /^[a-z0-9_-]{4,32}$/i;
+
+function withAffiliateRefCookie(request: NextRequest, response: NextResponse): NextResponse {
+  const ref = request.nextUrl.searchParams.get("ref")?.trim();
+  if (ref && REF_CODE_RE.test(ref)) {
+    response.cookies.set(AFFILIATE_REF_COOKIE, ref.toLowerCase(), {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 90,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+  }
+  return response;
+}
 
 function supabaseEnvOk(): { url: string; anon: string } | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -19,7 +35,7 @@ export async function updateSession(request: NextRequest) {
     console.warn(
       "[supabase middleware] NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is missing/invalid — session refresh and auth redirects are skipped.",
     );
-    return NextResponse.next({ request });
+    return withAffiliateRefCookie(request, NextResponse.next({ request }));
   }
 
   try {
@@ -59,27 +75,29 @@ export async function updateSession(request: NextRequest) {
 
     const isAuthPage = pathname === "/login" || pathname === "/register";
 
-    /** Public marketing routes must stay reachable without a session (nav, SEO, checkout return URLs). */
-    const requiresAuth = pathname.startsWith("/dashboard");
+    /** Affiliate dashboard: /partner only — not /partners (public marketing) or /partners/* (apply flow). */
+    const partnerDashboard =
+      pathname === "/partner" || pathname.startsWith("/partner/");
+    const requiresAuth = pathname.startsWith("/dashboard") || partnerDashboard;
 
     if (!user && requiresAuth) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       url.searchParams.set("next", pathname + request.nextUrl.search);
-      return NextResponse.redirect(url);
+      return withAffiliateRefCookie(request, NextResponse.redirect(url));
     }
 
     if (user && isAuthPage) {
       const next = request.nextUrl.searchParams.get("next");
       if (next && next.startsWith("/") && !next.startsWith("//")) {
-        return NextResponse.redirect(new URL(next, request.url));
+        return withAffiliateRefCookie(request, NextResponse.redirect(new URL(next, request.url)));
       }
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return withAffiliateRefCookie(request, NextResponse.redirect(new URL("/dashboard", request.url)));
     }
 
-    return supabaseResponse;
+    return withAffiliateRefCookie(request, supabaseResponse);
   } catch (e) {
     console.error("[supabase middleware] Unexpected error — continuing without auth:", e);
-    return NextResponse.next({ request });
+    return withAffiliateRefCookie(request, NextResponse.next({ request }));
   }
 }

@@ -55,12 +55,107 @@ html {
   pointer-events: auto;
 }
 
+/* Soft grid — visible but not competing with content (premium dark UI) */
 .lf-hero-grid {
-  background-color: rgb(2 6 23);
-  background-image: linear-gradient(to right, rgb(51 65 85 / 0.35) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(51 65 85 / 0.35) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 85% 70% at 50% 0%, black 35%, transparent 72%);
+  background-color: transparent;
+  background-image: linear-gradient(to right, rgb(63 63 70 / 0.09) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(63 63 70 / 0.09) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(ellipse 88% 72% at 50% -5%, rgb(0 0 0 / 0.55) 28%, transparent 70%);
+  opacity: 0.85;
+}
+
+/* Shared CTAs — same gradient language as login submit + pricing Pro */
+.lf-marketing-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding: 0.75rem 2rem;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  font-weight: 600;
+  color: #fafafa;
+  background: linear-gradient(135deg, rgb(124 58 237) 0%, rgb(109 40 217) 45%, rgb(91 33 182) 100%);
+  box-shadow:
+    0 4px 24px -6px rgba(91, 33, 182, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition:
+    filter 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+.lf-marketing-primary:hover {
+  filter: brightness(1.06);
+  box-shadow:
+    0 6px 32px -6px rgba(124, 58, 237, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.lf-marketing-primary:focus-visible {
+  outline: 2px solid rgb(167 139 250 / 0.55);
+  outline-offset: 2px;
+}
+.lf-marketing-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.lf-marketing-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding: 0.75rem 2rem;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  font-weight: 600;
+  color: rgb(228 228 231);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.lf-marketing-secondary:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(167, 139, 250, 0.35);
+  color: #fff;
+}
+.lf-marketing-secondary:focus-visible {
+  outline: 2px solid rgb(167 139 250 / 0.45);
+  outline-offset: 2px;
+}
+
+/* Nav links — ghost, matches login “back to home” subtlety */
+.lf-marketing-nav {
+  display: inline-flex;
+  min-height: 44px;
+  min-width: 44px;
+  align-items: center;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: rgb(161 161 170);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.lf-marketing-nav:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgb(244 244 245);
+}
+.lf-marketing-nav.lf-marketing-nav-emphasis {
+  font-weight: 500;
+  color: rgb(167 139 250);
+}
+.lf-marketing-nav.lf-marketing-nav-emphasis:hover {
+  color: rgb(196 181 253);
 }
 
 /* Without this, reduced-motion users keep opacity:0 forever on .lf-kinetic-* */

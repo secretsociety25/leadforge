@@ -5,10 +5,33 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
+import { applyAffiliateReferralWithCodeAction } from "@/app/actions/affiliate";
 import { syncPublicUserFromAuthAction } from "@/app/actions/auth-profile";
+import { AFFILIATE_REF_COOKIE } from "@/lib/affiliate/constants";
 import { createClient } from "@/lib/supabase";
 
 type Mode = "signin" | "signup";
+
+function readAffiliateRefFromBrowser(): string | null {
+  if (typeof document === "undefined") return null;
+  const parts = document.cookie.split("; ");
+  for (const p of parts) {
+    if (p.startsWith(`${AFFILIATE_REF_COOKIE}=`)) {
+      const v = p.slice(AFFILIATE_REF_COOKIE.length + 1);
+      try {
+        return decodeURIComponent(v);
+      } catch {
+        return v;
+      }
+    }
+  }
+  return null;
+}
+
+function clearAffiliateRefCookie(): void {
+  if (typeof document === "undefined") return;
+  document.cookie = `${AFFILIATE_REF_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
+}
 
 const SOFT_SYNC = "Profile sync unavailable";
 
@@ -114,6 +137,11 @@ export function LoginForm() {
             return;
           }
 
+          const refResultSignin = await applyAffiliateReferralWithCodeAction(readAffiliateRefFromBrowser());
+          if (refResultSignin.ok && refResultSignin.data.applied) {
+            clearAffiliateRefCookie();
+          }
+
           const sync = await syncProfileWithRetry();
           if (!sync.ok) {
             const msg = sync.error ?? "";
@@ -161,6 +189,11 @@ export function LoginForm() {
               "Account created but session was not saved. Allow cookies for this site and try signing in.",
             );
             return;
+          }
+
+          const refResultSignup = await applyAffiliateReferralWithCodeAction(readAffiliateRefFromBrowser());
+          if (refResultSignup.ok && refResultSignup.data.applied) {
+            clearAffiliateRefCookie();
           }
 
           const sync = await syncProfileWithRetry();
@@ -288,7 +321,7 @@ export function LoginForm() {
           type="submit"
           disabled={loading}
           aria-disabled={loading}
-          className="mt-1 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-700 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-950/40 transition hover:from-violet-500 hover:to-fuchsia-600 disabled:cursor-wait disabled:opacity-60"
+          className="lf-marketing-primary mt-1 w-full gap-2 text-sm disabled:cursor-wait"
         >
           {loading ? (
             <>

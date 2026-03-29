@@ -24,11 +24,11 @@ export const CURRENCY_TAB: Record<
   EUR: { code: "EUR", title: "Euro area", hint: "Euro" },
 };
 
-/** USD / month list prices (source of truth). Example: Starter $49 → ~180 AED / £38 / €45. */
+/** USD / month list prices (source of truth). Local currencies use FX approximation at checkout. */
 export const PAID_TIER_USD_MONTHLY: Record<PaidTier, number> = {
-  starter: 49,
-  pro: 99,
-  enterprise: 249,
+  starter: 79,
+  pro: 149,
+  enterprise: 349,
 };
 
 /**
@@ -192,22 +192,30 @@ export const PAID_TIER_DISPLAY: Record<
     name: string;
     description: string;
     highlights: string[];
+    /** Shown on pricing cards as the lead-volume headline */
+    leadVolumeLabel: string;
   }
 > = {
   starter: {
     name: "Starter",
-    description: "For small teams getting consistent outbound volume.",
-    highlights: ["500 leads / month", "5 campaigns", "Email support"],
+    description:
+      "Replace hours of manual research with AI — consistent pipeline work without adding headcount.",
+    leadVolumeLabel: "500 leads / month",
+    highlights: ["5 campaigns", "CSV enrichment & AI drafts", "Email support"],
   },
   pro: {
     name: "Pro",
-    description: "Scale pipeline with higher limits and room to run more campaigns.",
-    highlights: ["2,500 leads / month", "25 campaigns", "Priority support"],
+    description:
+      "Better than hiring a junior SDR: always-on research, 1:1 drafts, and scale that matches revenue.",
+    leadVolumeLabel: "2,500 leads / month",
+    highlights: ["25 campaigns", "Priority support", "Best value for serious outbound"],
   },
   enterprise: {
     name: "Enterprise",
-    description: "High volume and multiple motions in one workspace.",
-    highlights: ["10,000 leads / month", "100 campaigns", "Dedicated success"],
+    description:
+      "Maximum throughput for teams where pipeline is the business — volume, control, and room to grow.",
+    leadVolumeLabel: "10,000 leads / month",
+    highlights: ["100 campaigns", "Dedicated success", "Volume-ready infrastructure"],
   },
 };
 

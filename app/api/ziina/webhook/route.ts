@@ -1,5 +1,6 @@
 import crypto from "crypto";
 
+import { AFFILIATE_COMMISSION_RATE } from "@/lib/affiliate/constants";
 import { getTierPricing } from "@/lib/plans";
 import type { PaidTier } from "@/lib/plans";
 import {
@@ -217,6 +218,38 @@ export async function POST(request: Request) {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  const { data: payer } = await admin
+    .from("users")
+    .select("referred_by_affiliate_id")
+    .eq("id", op.user_id)
+    .maybeSingle();
+
+  if (payer?.referred_by_affiliate_id) {
+    const commissionMinor = Math.floor(amount * AFFILIATE_COMMISSION_RATE);
+    if (commissionMinor > 0) {
+      const { data: affRow } = await admin
+        .from("affiliates")
+        .select("id")
+        .eq("id", payer.referred_by_affiliate_id)
+        .maybeSingle();
+
+      if (affRow) {
+        const { error: commErr } = await admin.from("affiliate_commissions").insert({
+          affiliate_id: affRow.id,
+          referred_user_id: op.user_id,
+          payment_intent_id: paymentIntentId,
+          amount_paid_minor: amount,
+          commission_minor: commissionMinor,
+          currency,
+        });
+
+        if (commErr && (commErr as { code?: string }).code !== "23505") {
+          console.error("[ziina webhook] affiliate_commissions insert", commErr);
+        }
+      }
+    }
   }
 
   await admin

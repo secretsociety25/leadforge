@@ -390,6 +390,7 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
         {TIERS.map((tier) => {
           const def = PAID_TIER_DISPLAY[tier];
           const busy = loadingTier === tier;
+          const isPopular = tier === "pro";
           const label =
             busy && subscribePhase === "creating"
               ? "Preparing checkout…"
@@ -398,32 +399,59 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
                 : "Subscribe";
           const localized = formatTierMoney(tier, isAnnual, currency);
           const usd = PAID_TIER_USD_MONTHLY[tier];
+          const usdAnnualTotal = usd * ANNUAL_MONTHS_CHARGED;
           const usdLabel = isAnnual
-            ? `$${usd * ANNUAL_MONTHS_CHARGED} / year USD list`
-            : `$${usd} / month USD list`;
+            ? `$${usdAnnualTotal.toLocaleString("en-US")}/year USD list`
+            : `$${usd}/month USD list`;
 
           return (
             <article
               key={tier}
               style={{
-                border,
-                borderRadius: 16,
-                padding: "1.5rem",
-                background: "rgba(255,255,255,0.03)",
+                position: "relative",
+                border: isPopular ? "1px solid rgba(167, 139, 250, 0.55)" : border,
+                borderRadius: 18,
+                padding: isPopular ? "2.35rem 1.5rem 1.5rem" : "1.6rem 1.5rem 1.5rem",
+                background: isPopular
+                  ? "linear-gradient(165deg, rgba(91, 33, 182, 0.22) 0%, rgba(255,255,255,0.04) 45%, rgba(9,9,11,0.4) 100%)"
+                  : "rgba(255,255,255,0.03)",
+                boxShadow: isPopular
+                  ? "0 0 0 1px rgba(124, 58, 237, 0.12), 0 24px 48px -12px rgba(0, 0, 0, 0.55), 0 0 40px -8px rgba(124, 58, 237, 0.2)"
+                  : "none",
                 display: "flex",
                 flexDirection: "column",
                 gap: "0.75rem",
               }}
             >
+              {isPopular ? (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 12,
+                    right: 14,
+                    fontSize: "0.65rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    color: "#e9d5ff",
+                    background: "rgba(124, 58, 237, 0.45)",
+                    border: "1px solid rgba(196, 181, 253, 0.4)",
+                    padding: "0.28rem 0.65rem",
+                    borderRadius: 999,
+                  }}
+                >
+                  Most popular
+                </span>
+              ) : null}
               <header>
-                <h2 style={{ fontSize: "1.2rem", margin: "0 0 0.35rem", fontWeight: 650 }}>
+                <h2 style={{ fontSize: "1.25rem", margin: "0 0 0.35rem", fontWeight: 700 }}>
                   {def.name}
                 </h2>
                 <p
                   style={{
                     margin: "0 0 0.35rem",
-                    fontSize: "0.8rem",
-                    color: "rgba(250,250,250,0.45)",
+                    fontSize: "0.78rem",
+                    color: "rgba(250,250,250,0.42)",
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
@@ -431,19 +459,31 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
                 </p>
                 <p
                   style={{
-                    margin: "0 0 0.5rem",
-                    fontSize: "1.35rem",
+                    margin: "0 0 0.45rem",
+                    fontSize: "1.45rem",
                     fontWeight: 700,
                     color: "#fafafa",
                     fontVariantNumeric: "tabular-nums",
+                    letterSpacing: "-0.02em",
                   }}
                 >
                   {localized}
-                  <span style={{ fontWeight: 500, fontSize: "0.8rem", color: muted }}>
+                  <span style={{ fontWeight: 500, fontSize: "0.82rem", color: muted }}>
                     {isAnnual ? " / year" : " / month"}
                   </span>
                 </p>
-                <p style={{ margin: 0, fontSize: "0.9rem", color: muted, lineHeight: 1.5 }}>
+                <p
+                  style={{
+                    margin: "0 0 0.6rem",
+                    fontSize: "0.95rem",
+                    fontWeight: 600,
+                    color: "rgba(167, 243, 208, 0.95)",
+                    letterSpacing: "0.01em",
+                  }}
+                >
+                  {def.leadVolumeLabel}
+                </p>
+                <p style={{ margin: 0, fontSize: "0.88rem", color: "rgba(250,250,250,0.62)", lineHeight: 1.55 }}>
                   {def.description}
                 </p>
               </header>
@@ -469,10 +509,19 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
                 onClick={() => onSubscribe(tier)}
                 style={{
                   marginTop: "0.5rem",
-                  padding: "0.7rem 1rem",
-                  borderRadius: 10,
-                  border: "none",
-                  background: busy ? "rgba(255,255,255,0.12)" : "linear-gradient(135deg, #7c3aed, #5b21b6)",
+                  padding: "0.75rem 1rem",
+                  borderRadius: 11,
+                  border: isPopular ? "1px solid rgba(196, 181, 253, 0.35)" : "none",
+                  background: busy
+                    ? "rgba(255,255,255,0.12)"
+                    : isPopular
+                      ? "linear-gradient(145deg, #8b5cf6 0%, #6d28d9 45%, #5b21b6 100%)"
+                      : "linear-gradient(135deg, #7c3aed, #5b21b6)",
+                  boxShadow: busy
+                    ? "none"
+                    : isPopular
+                      ? "0 4px 20px rgba(124, 58, 237, 0.35), inset 0 1px 0 rgba(255,255,255,0.12)"
+                      : "0 4px 16px rgba(91, 33, 182, 0.25)",
                   color: "#fff",
                   fontWeight: 600,
                   cursor: busy ? "wait" : "pointer",
