@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: var(--font-inter, ui-sans-serif), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  font-family: var(--font-sans);
+}
+
+/* LeadForge landing — kinetic hero + grid (CSS-only, Lighthouse-friendly) */
+@keyframes lf-kinetic-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.lf-kinetic-1 {
+  animation: lf-kinetic-in 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.lf-kinetic-2 {
+  animation: lf-kinetic-in 0.85s 0.12s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.lf-kinetic-3 {
+  animation: lf-kinetic-in 0.85s 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.lf-kinetic-4 {
+  animation: lf-kinetic-in 0.85s 0.36s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* While opacity animates from 0, blocks can still capture pointer events — don’t steal taps from the header/nav. */
+.lf-kinetic-1,
+.lf-kinetic-2,
+.lf-kinetic-3 {
+  pointer-events: none;
+}
+
+.lf-kinetic-4 > * {
+  pointer-events: auto;
+}
+
+.lf-hero-grid {
+  background-color: rgb(2 6 23);
+  background-image: linear-gradient(to right, rgb(51 65 85 / 0.35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(51 65 85 / 0.35) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 85% 70% at 50% 0%, black 35%, transparent 72%);
+}
+
+/* Without this, reduced-motion users keep opacity:0 forever on .lf-kinetic-* */
+@media (prefers-reduced-motion: reduce) {
+  .lf-kinetic-1,
+  .lf-kinetic-2,
+  .lf-kinetic-3,
+  .lf-kinetic-4 {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
