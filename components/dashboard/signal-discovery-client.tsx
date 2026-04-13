@@ -269,8 +269,8 @@ export function SignalDiscoveryClient() {
           <h2 id="signal-params-heading" className="sr-only">
             Search parameters
           </h2>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <label className="flex flex-col gap-2">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-12">
+            <label className="flex flex-col gap-2 lg:col-span-5">
               <span className="text-xs font-semibold uppercase tracking-wider text-violet-300/85">
                 Niche / industry
               </span>
@@ -278,17 +278,17 @@ export function SignalDiscoveryClient() {
                 value={niche}
                 onChange={(e) => setNiche(e.target.value)}
                 placeholder="e.g. B2B SaaS, Industrial logistics"
-                className="rounded-xl border border-indigo-500/25 bg-black/50 px-4 py-3 text-sm text-zinc-100 shadow-inner shadow-black/40 outline-none ring-0 transition placeholder:text-zinc-600 focus:border-violet-500/45 focus:shadow-[0_0_0_1px_rgba(139,92,246,0.35)]"
+                className="rounded-xl border border-indigo-500/25 bg-black/50 px-4 py-3 text-sm text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] outline-none ring-0 transition placeholder:text-zinc-600 focus:border-violet-500/45 focus:shadow-[0_0_0_1px_rgba(139,92,246,0.35),0_0_28px_-10px_rgba(99,102,241,0.55)]"
               />
             </label>
-            <label className="flex flex-col gap-2">
+            <label className="flex flex-col gap-2 lg:col-span-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-violet-300/85">
                 Headcount
               </span>
               <select
                 value={headcount}
                 onChange={(e) => setHeadcount(e.target.value)}
-                className="rounded-xl border border-indigo-500/25 bg-black/50 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-violet-500/45"
+                className="rounded-xl border border-indigo-500/25 bg-black/50 px-4 py-3 text-sm text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] outline-none focus:border-violet-500/45 focus:shadow-[0_0_0_1px_rgba(139,92,246,0.35),0_0_28px_-10px_rgba(99,102,241,0.55)]"
               >
                 <option>1–10</option>
                 <option>11–50</option>
@@ -298,7 +298,7 @@ export function SignalDiscoveryClient() {
                 <option>1,000+</option>
               </select>
             </label>
-            <label className="flex flex-col gap-2 sm:col-span-2 lg:col-span-1">
+            <label className="flex flex-col gap-2 sm:col-span-2 lg:col-span-4">
               <span className="text-xs font-semibold uppercase tracking-wider text-violet-300/85">
                 Location
               </span>
@@ -306,22 +306,22 @@ export function SignalDiscoveryClient() {
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="United Kingdom"
-                className="rounded-xl border border-indigo-500/25 bg-black/50 px-4 py-3 text-sm text-zinc-100 shadow-inner shadow-black/40 outline-none placeholder:text-zinc-600 focus:border-violet-500/45"
+                className="rounded-xl border border-indigo-500/25 bg-black/50 px-4 py-3 text-sm text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] outline-none placeholder:text-zinc-600 focus:border-violet-500/45 focus:shadow-[0_0_0_1px_rgba(139,92,246,0.35),0_0_28px_-10px_rgba(99,102,241,0.55)]"
               />
             </label>
           </div>
 
-          <div className="mt-8 flex flex-wrap items-center gap-4">
+          <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
               disabled={phase === "sovereign" || discoveryLoading}
               onClick={() => void runMapping()}
-              className="inline-flex min-h-[52px] min-w-[220px] items-center justify-center rounded-xl border border-violet-400/35 bg-gradient-to-br from-violet-600 via-indigo-700 to-indigo-950 px-8 text-sm font-semibold tracking-wide text-white shadow-[0_8px_40px_-8px_rgba(99,102,241,0.65),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-80"
+              className="inline-flex min-h-[52px] w-full items-center justify-center rounded-xl border border-violet-400/35 bg-gradient-to-br from-violet-600 via-indigo-700 to-indigo-950 px-8 text-sm font-semibold tracking-wide text-white shadow-[0_10px_52px_-14px_rgba(99,102,241,0.75),inset_0_1px_0_rgba(255,255,255,0.14)] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-80 sm:w-auto"
             >
               {phase === "sovereign" ? "Mapping in progress…" : "Map Market"}
             </button>
             {phase === "done" ? (
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+              <div className="flex flex-col gap-1 sm:items-end sm:text-right">
                 <span className="text-sm text-emerald-400/90">
                   Signal synthesis complete — review mapped accounts below.
                 </span>
@@ -373,7 +373,7 @@ export function SignalDiscoveryClient() {
                 Mapped accounts
               </h2>
               <p className="mt-1 text-sm text-zinc-500">
-                High-signal placeholder layer — wire to live ingestion when ready.
+                Live UK registry results — Companies House (last 7 days).
               </p>
             </div>
             <span
