@@ -88,6 +88,7 @@ export function SignalDiscoveryClient() {
   const [discoveryLoading, setDiscoveryLoading] = useState(false);
   const [discoveryLog, setDiscoveryLog] = useState<string[]>([]);
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
+  const [discoveryHint, setDiscoveryHint] = useState<string | null>(null);
   const [intelLead, setIntelLead] = useState<SignalLeadRow | null>(null);
   const [intelOpen, setIntelOpen] = useState(false);
   const [intelLoading, setIntelLoading] = useState(false);
@@ -98,32 +99,81 @@ export function SignalDiscoveryClient() {
     setDiscoveryLog((prev) => [...prev, line].slice(-40));
   }, []);
 
-  const fetchSignals = useCallback(async () => {
-    const res = await fetch("/api/discovery?size=20", { method: "GET" });
-    const data = (await res.json()) as
+  const fetchSignals = useCallback(async (): Promise<
+    | {
+        ok: true;
+        companies: Array<{ companyName: string; companyNumber: string; creationDate: string }>;
+      }
+    | { ok: false; code: string; hint?: string; details?: string }
+  > => {
+    const res = await fetch("/api/discovery?size=20", {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    const raw = await res.text();
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      const head = raw.trimStart().slice(0, 1);
+      if (head === "<") {
+        return {
+          ok: false,
+          code: "API_ROUTE_RETURNED_HTML",
+        };
+      }
+      return {
+        ok: false,
+        code: "DISCOVERY_INVALID_JSON",
+        details: raw.slice(0, 180).replace(/\s+/g, " ").trim(),
+      };
+    }
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {
+        ok: false,
+        code: "DISCOVERY_INVALID_JSON",
+        details: raw.slice(0, 180).replace(/\s+/g, " ").trim(),
+      };
+    }
+    const data = parsed as
       | {
           ok: true;
           companies: Array<{ companyName: string; companyNumber: string; creationDate: string }>;
         }
-      | { ok: false; error: string; status?: number; details?: string };
+      | {
+          ok: false;
+          error: string;
+          status?: number;
+          details?: string;
+          hint?: string;
+        };
     if (!res.ok || !data.ok) {
       const errCode = !data.ok ? data.error : "";
+      const hint = !data.ok ? data.hint : undefined;
+      const details = !data.ok ? data.details : undefined;
       if (res.status === 401 || errCode === "INVALID_API_KEY") {
-        throw new Error("INVALID_API_KEY");
+        return { ok: false, code: "INVALID_API_KEY", hint, details };
       }
       if (res.status === 429 || errCode === "UK_GOV_RATE_LIMIT_REACHED") {
-        throw new Error("UK_GOV_RATE_LIMIT_REACHED");
+        return { ok: false, code: "UK_GOV_RATE_LIMIT_REACHED", hint, details };
+      }
+      if (errCode === "COMPANIES_HOUSE_API_KEY_PLACEHOLDER") {
+        return { ok: false, code: "API_KEY_PLACEHOLDER", hint, details };
+      }
+      if (errCode === "Missing COMPANIES_HOUSE_API_KEY") {
+        return { ok: false, code: "API_KEY_MISSING", hint, details };
       }
       const msg = !data.ok ? data.error : `Discovery failed (${res.status})`;
-      throw new Error(msg);
+      return { ok: false, code: msg, hint, details };
     }
-    return data.companies;
+    return { ok: true, companies: data.companies };
   }, []);
 
   const runMapping = useCallback(async () => {
     setLeads([]);
     setDiscoveryLog([]);
     setDiscoveryError(null);
+    setDiscoveryHint(null);
     setSovereignIndex(0);
     setPhase("sovereign");
     setDiscoveryLoading(true);
@@ -136,7 +186,42 @@ export function SignalDiscoveryClient() {
       }
 
       appendDiscoveryLog("[SIGINT] Pulling Companies House filings (last 7 days)…");
-      const companies = await fetchSignals();
+      const sig = await fetchSignals();
+      if (!sig.ok) {
+        if (sig.code === "INVALID_API_KEY") {
+          appendDiscoveryLog("[ERR] INVALID API KEY");
+          setDiscoveryError("INVALID API KEY");
+        } else if (sig.code === "UK_GOV_RATE_LIMIT_REACHED") {
+          appendDiscoveryLog("[ERR] UK GOV RATE LIMIT REACHED");
+          setDiscoveryError("UK GOV RATE LIMIT REACHED");
+        } else if (
+          sig.code === "API_KEY_PLACEHOLDER" ||
+          sig.code === "COMPANIES_HOUSE_API_KEY_PLACEHOLDER"
+        ) {
+          appendDiscoveryLog("[ERR] API KEY STILL PLACEHOLDER — update .env.local");
+          setDiscoveryError("API KEY STILL PLACEHOLDER");
+        } else if (sig.code === "API_KEY_MISSING") {
+          appendDiscoveryLog("[ERR] COMPANIES_HOUSE_API_KEY is empty — set it in .env.local");
+          setDiscoveryError("COMPANIES HOUSE API KEY NOT SET");
+        } else if (sig.code === "API_ROUTE_RETURNED_HTML") {
+          appendDiscoveryLog("[ERR] /api/discovery returned HTML (not JSON)");
+          setDiscoveryError("HTML INSTEAD OF JSON");
+        } else if (sig.code === "DISCOVERY_INVALID_JSON") {
+          appendDiscoveryLog("[ERR] /api/discovery response was not valid JSON");
+          setDiscoveryError("INVALID JSON FROM /api/discovery");
+        } else {
+          appendDiscoveryLog(`[ERR] ${sig.code}`);
+          setDiscoveryError(sig.code);
+        }
+        if (sig.hint) {
+          setDiscoveryHint(sig.hint);
+          appendDiscoveryLog(`[HINT] ${sig.hint}`);
+        }
+        setPhase("done");
+        return;
+      }
+
+      const companies = sig.companies;
       appendDiscoveryLog(`[SYNC] ${companies.length} company record(s) resolved · mapping table…`);
 
       const mapped: SignalLeadRow[] = companies.map((c, i) => ({
@@ -154,21 +239,13 @@ export function SignalDiscoveryClient() {
       setPhase("done");
     } catch (e) {
       const code = e instanceof Error ? e.message : "Discovery failed";
-      if (code === "INVALID_API_KEY") {
-        appendDiscoveryLog("[ERR] INVALID API KEY");
-        setDiscoveryError("INVALID API KEY");
-      } else if (code === "UK_GOV_RATE_LIMIT_REACHED") {
-        appendDiscoveryLog("[ERR] UK GOV RATE LIMIT REACHED");
-        setDiscoveryError("UK GOV RATE LIMIT REACHED");
-      } else {
-        appendDiscoveryLog(`[ERR] ${code}`);
-        setDiscoveryError(String(code));
-      }
+      appendDiscoveryLog(`[ERR] ${code}`);
+      setDiscoveryError(String(code));
       setPhase("done");
     } finally {
       setDiscoveryLoading(false);
     }
-  }, [appendDiscoveryLog, fetchSignals, location]);
+  }, [appendDiscoveryLog, fetchSignals]);
 
   const closeIntelPanel = useCallback(() => {
     setIntelOpen(false);
@@ -396,6 +473,130 @@ export function SignalDiscoveryClient() {
                     Signal Discovery only populates from the UK registry bridge at{" "}
                     <span className="font-mono text-zinc-400">/api/discovery</span>.
                   </span>
+                  {discoveryHint &&
+                  discoveryError !== "API KEY STILL PLACEHOLDER" &&
+                  discoveryError !== "COMPANIES HOUSE API KEY NOT SET" &&
+                  discoveryError !== "HTML INSTEAD OF JSON" &&
+                  discoveryError !== "INVALID JSON FROM /api/discovery" ? (
+                    <span className="mt-3 block text-left text-xs leading-relaxed text-violet-200/80">
+                      {discoveryHint}
+                    </span>
+                  ) : null}
+                  {discoveryError === "API KEY STILL PLACEHOLDER" ||
+                  discoveryError === "COMPANIES HOUSE API KEY NOT SET" ? (
+                    <ul className="mt-4 list-disc pl-5 text-left text-xs leading-relaxed text-zinc-400">
+                      <li>
+                        Open <span className="font-mono text-zinc-300">.env.local</span> in the project
+                        root (same folder as <span className="font-mono text-zinc-300">package.json</span>
+                        ).
+                      </li>
+                      <li>
+                        On the line{" "}
+                        <span className="font-mono text-zinc-300">COMPANIES_HOUSE_API_KEY=</span>, put
+                        your real key from{" "}
+                        <a
+                          href="https://developer.company-information.service.gov.uk/manage-applications"
+                          className="text-violet-300 underline underline-offset-2 hover:text-violet-200"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Manage applications
+                        </a>{" "}
+                        (REST API, not Streaming).
+                      </li>
+                      <li>
+                        One line, no quotes:{" "}
+                        <span className="font-mono text-xs text-zinc-300">
+                          COMPANIES_HOUSE_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                        </span>
+                      </li>
+                      <li>
+                        Stop and start <span className="font-mono text-zinc-300">npm run dev</span>, then
+                        hit{" "}
+                        <a
+                          href="/api/discovery/health"
+                          className="font-mono text-violet-300 underline decoration-violet-500/40 underline-offset-2 hover:text-violet-200"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          /api/discovery/health
+                        </a>{" "}
+                        — you want <span className="font-mono text-zinc-300">ok: true</span>.
+                      </li>
+                    </ul>
+                  ) : null}
+                  {discoveryError === "HTML INSTEAD OF JSON" ? (
+                    <ul className="mt-4 list-disc pl-5 text-left text-xs leading-relaxed text-zinc-400">
+                      <li>
+                        The browser called{" "}
+                        <a
+                          href="/api/discovery"
+                          className="font-mono text-violet-300 underline decoration-violet-500/40 underline-offset-2 hover:text-violet-200"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          /api/discovery
+                        </a>{" "}
+                        but got an HTML document (for example{" "}
+                        <span className="font-mono text-zinc-400">&lt;!DOCTYPE…&gt;</span>
+                        ). That usually means this URL is not hitting your Next.js app.
+                      </li>
+                      <li>
+                        Use the same host and port as the dashboard (for example if the app is on{" "}
+                        <span className="font-mono text-zinc-300">localhost:3006</span>, open that
+                        origin — not another tab on <span className="font-mono text-zinc-300">3000</span>{" "}
+                        with no dev server).
+                      </li>
+                      <li>
+                        From the project root run{" "}
+                        <span className="font-mono text-zinc-300">npm run dev</span>, then reload this
+                        page and try <span className="font-mono text-zinc-300">Map Market</span> again.
+                      </li>
+                    </ul>
+                  ) : null}
+                  {discoveryError === "INVALID JSON FROM /api/discovery" ? (
+                    <ul className="mt-4 list-disc pl-5 text-left text-xs leading-relaxed text-zinc-400">
+                      <li>
+                        Open{" "}
+                        <a
+                          href="/api/discovery"
+                          className="font-mono text-violet-300 underline decoration-violet-500/40 underline-offset-2 hover:text-violet-200"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          /api/discovery
+                        </a>{" "}
+                        — you should see JSON. If the body is empty or corrupted, check the terminal
+                        running <span className="font-mono text-zinc-300">next dev</span> for route
+                        errors.
+                      </li>
+                    </ul>
+                  ) : null}
+                  {discoveryError === "INVALID API KEY" ? (
+                    <ul className="mt-4 list-disc pl-5 text-left text-xs leading-relaxed text-zinc-400">
+                      <li>
+                        Open{" "}
+                        <a
+                          href="/api/discovery/health"
+                          className="font-mono text-violet-300 underline decoration-violet-500/40 underline-offset-2 hover:text-violet-200"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          /api/discovery/health
+                        </a>{" "}
+                        — if <span className="font-mono text-zinc-300">searchCompaniesHttpStatus</span>{" "}
+                        is <span className="text-zinc-300">401</span>, Companies House is rejecting
+                        the key (regenerate a <strong className="text-zinc-200">REST</strong> key, not
+                        Streaming).
+                      </li>
+                      <li>
+                        In <span className="font-mono text-zinc-300">.env.local</span> use{" "}
+                        <span className="font-mono text-zinc-300">COMPANIES_HOUSE_API_KEY=…</span> with
+                        no trailing colon and no quotes; then restart{" "}
+                        <span className="font-mono text-zinc-300">npm run dev</span>.
+                      </li>
+                    </ul>
+                  ) : null}
                 </>
               ) : (
                 <>

@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 
+import {
+  COMPANIES_HOUSE_USER_AGENT,
+  companiesHouseBasicAuthHeader,
+  readCompaniesHouseApiKeyFromEnv,
+} from "@/lib/companies-house-api-key";
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -16,10 +22,31 @@ function isoDateOnly(d: Date): string {
 }
 
 export async function GET(request: Request) {
-  const apiKey = process.env.COMPANIES_HOUSE_API_KEY?.trim();
+  const apiKey = readCompaniesHouseApiKeyFromEnv();
   if (!apiKey) {
     return NextResponse.json(
       { ok: false, error: "Missing COMPANIES_HOUSE_API_KEY" },
+      { status: 500 },
+    );
+  }
+  /** Only block obvious tutorial strings — not fuzzy regex (avoids surprises). */
+  const placeholderKeys = new Set(
+    [
+      "your_key_here",
+      "your-key-here",
+      "yourkeyhere",
+      "changeme",
+      "replace_me",
+      "api_key_here",
+      "xxx",
+    ].map((s) => s.toLowerCase()),
+  );
+  if (placeholderKeys.has(apiKey.toLowerCase())) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "COMPANIES_HOUSE_API_KEY_PLACEHOLDER",
+      },
       { status: 500 },
     );
   }
@@ -43,12 +70,13 @@ export async function GET(request: Request) {
   upstream.searchParams.set("company_status", "active");
   upstream.searchParams.set("size", String(size));
 
-  const auth = Buffer.from(`${apiKey}:`).toString("base64");
+  const authHeader = companiesHouseBasicAuthHeader(apiKey);
 
   const res = await fetch(upstream, {
     headers: {
-      Authorization: `Basic ${auth}`,
+      Authorization: authHeader,
       Accept: "application/json",
+      "User-Agent": COMPANIES_HOUSE_USER_AGENT,
     },
     cache: "no-store",
   });
@@ -62,12 +90,38 @@ export async function GET(request: Request) {
         : status === 429
           ? "UK_GOV_RATE_LIMIT_REACHED"
           : `COMPANIES_HOUSE_ERROR_${status}`;
+
+    /** If advanced search rejects auth, confirm whether the key works on a basic search endpoint. */
+    let keyProbe: "ok" | "fail" | "skipped" = "skipped";
+    if (status === 401) {
+      const probeUrl = new URL("https://api.company-information.service.gov.uk/search/companies");
+      probeUrl.searchParams.set("q", "a");
+      probeUrl.searchParams.set("items_per_page", "1");
+      const probe = await fetch(probeUrl, {
+        headers: {
+          Authorization: authHeader,
+          Accept: "application/json",
+          "User-Agent": COMPANIES_HOUSE_USER_AGENT,
+        },
+        cache: "no-store",
+      });
+      keyProbe = probe.ok ? "ok" : "fail";
+    }
+
+    const hint401 =
+      status === 401
+        ? keyProbe === "ok"
+          ? "Your key works on /search/companies but not on /advanced-search/companies — check your developer application has access to Advanced search, or contact Companies House support."
+          : "Use a REST API key from developer.company-information.service.gov.uk (Manage applications). It must not be a Streaming API key. Ensure .env.local has COMPANIES_HOUSE_API_KEY=key with no quotes/spaces, then restart next dev."
+        : undefined;
+
     return NextResponse.json(
       {
         ok: false,
         error: mappedError,
         status,
         details: body.slice(0, 600),
+        ...(hint401 ? { hint: hint401, keyProbe } : {}),
       },
       { status },
     );
