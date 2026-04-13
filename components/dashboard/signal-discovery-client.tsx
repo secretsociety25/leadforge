@@ -113,26 +113,88 @@ export function SignalDiscoveryClient() {
   const [phase, setPhase] = useState<"idle" | "sovereign" | "done">("idle");
   const [sovereignIndex, setSovereignIndex] = useState(0);
   const [leads, setLeads] = useState<SignalLeadRow[]>([]);
+  const [discoveryLoading, setDiscoveryLoading] = useState(false);
+  const [discoveryLog, setDiscoveryLog] = useState<string[]>([]);
   const [intelLead, setIntelLead] = useState<SignalLeadRow | null>(null);
   const [intelOpen, setIntelOpen] = useState(false);
   const [intelLoading, setIntelLoading] = useState(false);
   const [synthLog, setSynthLog] = useState<string[]>([]);
   const [intelPanelEntered, setIntelPanelEntered] = useState(false);
 
+  const appendDiscoveryLog = useCallback((line: string) => {
+    setDiscoveryLog((prev) => [...prev, line].slice(-40));
+  }, []);
+
+  const fetchSignals = useCallback(async () => {
+    const res = await fetch("/api/discovery?size=20", { method: "GET" });
+    const data = (await res.json()) as
+      | {
+          ok: true;
+          companies: Array<{ companyName: string; companyNumber: string; creationDate: string }>;
+        }
+      | { ok: false; error: string; status?: number; details?: string };
+    if (!res.ok || !data.ok) {
+      const errCode = !data.ok ? data.error : "";
+      if (res.status === 401 || errCode === "INVALID_API_KEY") {
+        throw new Error("INVALID_API_KEY");
+      }
+      if (res.status === 429 || errCode === "UK_GOV_RATE_LIMIT_REACHED") {
+        throw new Error("UK_GOV_RATE_LIMIT_REACHED");
+      }
+      const msg = !data.ok ? data.error : `Discovery failed (${res.status})`;
+      throw new Error(msg);
+    }
+    return data.companies;
+  }, []);
+
   const runMapping = useCallback(async () => {
     setLeads([]);
+    setDiscoveryLog([]);
     setSovereignIndex(0);
     setPhase("sovereign");
+    setDiscoveryLoading(true);
+    appendDiscoveryLog("[L3] SCANNING UK REGISTRY...");
 
-    for (let i = 0; i < SOVEREIGN_SEQUENCE.length; i++) {
-      setSovereignIndex(i);
-      await new Promise((r) => setTimeout(r, 1100));
+    try {
+      for (let i = 0; i < SOVEREIGN_SEQUENCE.length; i++) {
+        setSovereignIndex(i);
+        await new Promise((r) => setTimeout(r, 520));
+      }
+
+      appendDiscoveryLog("[SIGINT] Pulling Companies House filings (last 7 days)…");
+      const companies = await fetchSignals();
+      appendDiscoveryLog(`[SYNC] ${companies.length} company record(s) resolved · mapping table…`);
+
+      const mapped: SignalLeadRow[] = companies.map((c, i) => ({
+        id: `ch-${c.companyNumber}`,
+        name: c.companyName,
+        company: c.companyNumber,
+        role: "Companies House",
+        location: c.creationDate,
+        score: String(70 + ((i * 7) % 25)),
+        status: "Registry verified",
+        sources: ["companies_house"],
+      }));
+
+      setLeads(mapped);
+      setPhase("done");
+    } catch (e) {
+      const code = e instanceof Error ? e.message : "Discovery failed";
+      if (code === "INVALID_API_KEY") {
+        appendDiscoveryLog("[ERR] INVALID API KEY");
+      } else if (code === "UK_GOV_RATE_LIMIT_REACHED") {
+        appendDiscoveryLog("[ERR] UK GOV RATE LIMIT REACHED");
+      } else {
+        appendDiscoveryLog(`[ERR] ${code}`);
+      }
+      // Fallback to placeholders so the demo stays alive even if the upstream API is rate-limited.
+      const next = buildPlaceholderLeads(location);
+      setLeads(next);
+      setPhase("done");
+    } finally {
+      setDiscoveryLoading(false);
     }
-
-    const next = buildPlaceholderLeads(location);
-    setLeads(next);
-    setPhase("done");
-  }, [location]);
+  }, [appendDiscoveryLog, fetchSignals, location]);
 
   const closeIntelPanel = useCallback(() => {
     setIntelOpen(false);
@@ -278,11 +340,11 @@ export function SignalDiscoveryClient() {
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <button
               type="button"
-              disabled={phase === "sovereign"}
+              disabled={phase === "sovereign" || discoveryLoading}
               onClick={() => void runMapping()}
               className="inline-flex min-h-[52px] min-w-[220px] items-center justify-center rounded-xl border border-violet-400/35 bg-gradient-to-br from-violet-600 via-indigo-700 to-indigo-950 px-8 text-sm font-semibold tracking-wide text-white shadow-[0_8px_40px_-8px_rgba(99,102,241,0.65),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-80"
             >
-              {phase === "sovereign" ? "Mapping in progress…" : "Begin Market Mapping"}
+              {phase === "sovereign" ? "Mapping in progress…" : "Map Market"}
             </button>
             {phase === "done" ? (
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
@@ -320,6 +382,13 @@ export function SignalDiscoveryClient() {
                 </li>
               ))}
             </ul>
+            <div className="mt-6 rounded-xl border border-indigo-500/20 bg-black/60 p-4 font-mono text-[11px] leading-relaxed text-emerald-400/95 sm:text-xs">
+              {discoveryLog.map((line, i) => (
+                <p key={`${i}-${line}`} className="mb-1.5">
+                  <span className="text-emerald-600/80">➜</span> {line}
+                </p>
+              ))}
+            </div>
           </section>
         ) : null}
 
@@ -362,10 +431,10 @@ export function SignalDiscoveryClient() {
                         Company
                       </th>
                       <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                        Role
+                        Source
                       </th>
                       <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                        Territory
+                        Created
                       </th>
                       <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
                         Signal score
