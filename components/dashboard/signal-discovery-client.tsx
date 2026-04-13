@@ -510,14 +510,20 @@ export function SignalDiscoveryClient() {
                   discoveryError === "COMPANIES HOUSE API KEY NOT SET" ? (
                     <ul className="mt-4 list-disc pl-5 text-left text-xs leading-relaxed text-zinc-400">
                       <li>
-                        Open <span className="font-mono text-zinc-300">.env.local</span> in the project
-                        root (same folder as <span className="font-mono text-zinc-300">package.json</span>
-                        ).
+                        <strong className="text-zinc-300">Local:</strong> set{" "}
+                        <span className="font-mono text-zinc-300">COMPANIES_HOUSE_API_KEY</span> in{" "}
+                        <span className="font-mono text-zinc-300">.env.local</span> (gitignored — not pushed).
                       </li>
                       <li>
-                        On the line{" "}
-                        <span className="font-mono text-zinc-300">COMPANIES_HOUSE_API_KEY=</span>, put
-                        your real key from{" "}
+                        <strong className="text-zinc-300">Production:</strong> add the same variable in your
+                        host&apos;s environment settings (e.g. Netlify{" "}
+                        <span className="font-mono text-zinc-400">Site configuration → Environment variables</span>
+                        , Vercel <span className="font-mono text-zinc-400">Settings → Environment Variables</span>
+                        ), then <strong className="text-zinc-300">redeploy</strong>. The live site never reads
+                        your laptop&apos;s <span className="font-mono text-zinc-300">.env.local</span>.
+                      </li>
+                      <li>
+                        Use your real key from{" "}
                         <a
                           href="https://developer.company-information.service.gov.uk/manage-applications"
                           className="text-violet-300 underline underline-offset-2 hover:text-violet-200"
@@ -526,17 +532,12 @@ export function SignalDiscoveryClient() {
                         >
                           Manage applications
                         </a>{" "}
-                        (REST API, not Streaming).
+                        (REST API, not Streaming). One line, no quotes, no trailing colon.
                       </li>
                       <li>
-                        One line, no quotes:{" "}
-                        <span className="font-mono text-xs text-zinc-300">
-                          COMPANIES_HOUSE_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-                        </span>
-                      </li>
-                      <li>
-                        Stop and start <span className="font-mono text-zinc-300">npm run dev</span>, then
-                        hit{" "}
+                        After updating env: local → restart{" "}
+                        <span className="font-mono text-zinc-300">npm run dev</span>; production → new deploy.
+                        Then open{" "}
                         <a
                           href="/api/discovery/health"
                           className="font-mono text-violet-300 underline decoration-violet-500/40 underline-offset-2 hover:text-violet-200"
