@@ -151,29 +151,29 @@ export const PAID_TIER_DISPLAY: Record<
   starter: {
     name: "Starter (£550) · The Intercept",
     description:
-      "Fast qualification and sovereign positioning — enough runway to test the engine without overexposing process.",
-    leadVolumeLabel: "1,000 High-Signal Leads / mo.",
-    highlights: ["Internal Lead Sourcing", "Standard SMTP Bridge"],
+      "For agencies validating product-market fit.",
+    leadVolumeLabel: "1,000 lead signals / mo.",
+    highlights: ["1,000 lead signals", "Standard SMTP Bridge"],
   },
   pro: {
-    name: "Pro (£1,250) · The Infiltrator",
+    name: "Pro (£1,250) · The Synthetic SDR",
     description:
-      "Serious outbound cadence — deeper synthesis, faster queue, and multi-channel coherence when inboxes get noisy.",
-    leadVolumeLabel: "3,500 High-Signal Leads / mo.",
+      "For scaling teams who want to recover £2k+ in monthly labour costs.",
+    leadVolumeLabel: "3,500 Executive Briefing Dossiers / mo.",
     highlights: [
       "3,500 Signals",
-      "2 Managed Isolation Domains",
-      "Warming Included",
+      "Managed Ghost Node Infrastructure",
+      "Executive Briefing Dossiers",
     ],
   },
   enterprise: {
-    name: "Enterprise (£2,500+) · The Sovereign",
+    name: "Sovereign (£2,500+) · Market Dominance",
     description:
-      "Board-grade throughput — bespoke neural layers, analyst-led execution, and integrations that match how your firm actually runs revenue.",
-    leadVolumeLabel: "10,000+ High-Signal Leads / mo.",
+      "For the top 1% of UK outbound firms looking for total market dominance.",
+    leadVolumeLabel: "10,000+ signals / mo.",
     highlights: [
       "10,000+ Signals",
-      "Unlimited Managed Nodes",
+      "Full Ghost Infrastructure (5+ nodes)",
       "Custom Neural Layer Training",
     ],
   },

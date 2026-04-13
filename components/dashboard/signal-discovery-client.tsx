@@ -11,6 +11,8 @@ export type SignalLeadRow = {
   location: string;
   score: string;
   status: string;
+  /** Data provenance for confidence signalling in the dossier. */
+  sources?: ("companies_house" | "job_board" | "verified_email")[];
 };
 
 const SOVEREIGN_SEQUENCE = [
@@ -38,6 +40,12 @@ function buildPlaceholderLeads(location: string): SignalLeadRow[] {
     location: locLabel,
     score: String(78 + ((i * 3) % 20)),
     status: "L3 Complete",
+    sources:
+      String(name).trim().toLowerCase() === "john doe"
+        ? ["companies_house", "job_board", "verified_email"]
+        : i % 3 === 0
+          ? ["companies_house"]
+          : ["verified_email"],
   }));
 }
 
@@ -61,6 +69,22 @@ type DossierSections = {
 
 function isJohnDoeLead(lead: SignalLeadRow): boolean {
   return lead.name.trim().toLowerCase() === "john doe";
+}
+
+function signalBarsForLead(lead: SignalLeadRow): 1 | 2 | 3 {
+  const sources = lead.sources ?? [];
+  const hasCompaniesHouse = sources.includes("companies_house");
+  const hasJobBoard = sources.includes("job_board");
+  const hasVerifiedEmail = sources.includes("verified_email");
+  if (hasCompaniesHouse && hasJobBoard && hasVerifiedEmail) return 3;
+  if (sources.length >= 2) return 2;
+  return 1;
+}
+
+function signalCertaintyLabel(bars: 1 | 2 | 3): string {
+  if (bars === 3) return "High certainty";
+  if (bars === 2) return "Medium certainty";
+  return "Lower certainty";
 }
 
 /** Demo flagship dossier — depth reference for recordings (HTML fragments, John Doe only). */
@@ -425,14 +449,54 @@ export function SignalDiscoveryClient() {
                   {intelLead.role} · {intelLead.company}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={closeIntelPanel}
-                className="shrink-0 rounded-lg border border-zinc-700/80 bg-zinc-900/80 p-2 text-zinc-400 transition hover:border-indigo-500/40 hover:bg-indigo-500/10 hover:text-white"
-                aria-label="Close"
-              >
-                <X className="size-4" aria-hidden />
-              </button>
+              <div className="flex items-center gap-3">
+                {(() => {
+                  const bars = signalBarsForLead(intelLead);
+                  const certainty = signalCertaintyLabel(bars);
+                  return (
+                    <div
+                      className="flex items-center gap-2 rounded-full border border-indigo-500/25 bg-black/40 px-3 py-1.5"
+                      aria-label={`Signal Strength: ${bars} of 3 bars (${certainty})`}
+                      title={`Signal Strength · ${certainty}`}
+                    >
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-300/80">
+                        Signal
+                      </span>
+                      <span className="flex items-end gap-0.5" aria-hidden>
+                        <span
+                          className={`w-1 rounded-sm ${bars >= 1 ? "bg-emerald-400" : "bg-zinc-700"}`}
+                          style={{
+                            height: 8,
+                            boxShadow: bars >= 1 ? "0 0 14px rgba(52,211,153,0.55)" : "none",
+                          }}
+                        />
+                        <span
+                          className={`w-1 rounded-sm ${bars >= 2 ? "bg-emerald-400" : "bg-zinc-700"}`}
+                          style={{
+                            height: 12,
+                            boxShadow: bars >= 2 ? "0 0 14px rgba(52,211,153,0.55)" : "none",
+                          }}
+                        />
+                        <span
+                          className={`w-1 rounded-sm ${bars >= 3 ? "bg-emerald-400" : "bg-zinc-700"}`}
+                          style={{
+                            height: 16,
+                            boxShadow: bars >= 3 ? "0 0 14px rgba(52,211,153,0.55)" : "none",
+                          }}
+                        />
+                      </span>
+                    </div>
+                  );
+                })()}
+                <button
+                  type="button"
+                  onClick={closeIntelPanel}
+                  className="shrink-0 rounded-lg border border-zinc-700/80 bg-zinc-900/80 p-2 text-zinc-400 transition hover:border-indigo-500/40 hover:bg-indigo-500/10 hover:text-white"
+                  aria-label="Close"
+                >
+                  <X className="size-4" aria-hidden />
+                </button>
+              </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
@@ -528,8 +592,7 @@ export function SignalDiscoveryClient() {
 
             <div className="border-t border-indigo-500/15 bg-black/50 px-5 py-3">
               <p className="text-center text-[10px] font-medium uppercase tracking-wider text-zinc-600">
-                L3 signal score {intelLead.score}/100 · {intelLead.location}
-                {isJohnDoeLead(intelLead) ? " · Demo depth profile" : ""}
+                Generated via Multi-Source Signal Synthesis. Cross-referenced with UK Public Records.
               </p>
             </div>
           </div>

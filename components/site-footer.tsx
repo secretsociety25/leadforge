@@ -40,6 +40,9 @@ export async function SiteFooter() {
             <Link href="/partners" prefetch={false} className={linkClass}>
               Partners
             </Link>
+            <Link href="/compliance-security" prefetch={false} className={linkClass}>
+              Compliance &amp; Security
+            </Link>
             {signedIn ? (
               <Link href="/dashboard" prefetch={false} className={linkClass}>
                 Dashboard

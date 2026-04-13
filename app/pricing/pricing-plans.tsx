@@ -385,7 +385,7 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
                     borderRadius: 999,
                   }}
                 >
-                  High-signal · Pro
+                  Best value · Synthetic SDR
                 </span>
               ) : null}
               <header>
