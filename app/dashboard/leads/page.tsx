@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Leads — LeadForge",
-  description: "Generate and export personalized cold emails.",
+  description: "Generate and export personalised cold emails.",
 };
 
 function queryTimeout(ms: number) {

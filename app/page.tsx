@@ -63,7 +63,7 @@ export default function HomePage() {
             </h1>
             <p className="lf-kinetic-3 mx-auto mt-6 max-w-2xl text-pretty text-base leading-relaxed text-zinc-400 sm:text-lg">
               Stop the &apos;Spray and Pray&apos;. LeadForge applies Psychographic Manifold Synthesis to every
-              prospect and writes 1:1 personalized emails that bypass spam filters and land meetings.
+              prospect and writes 1:1 personalised emails that bypass spam filters and land meetings.
             </p>
             <div className="lf-kinetic-4 mt-10 flex flex-col items-center justify-center gap-3">
               <div className="flex w-full max-w-lg flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">

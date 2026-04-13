@@ -11,7 +11,7 @@ import type { UserTier } from "@/lib/database.types";
 import {
   getTierPricing,
   isPaidTier,
-  isSupportedCurrency,
+  PRICING_CURRENCY_CODE,
   type PaidTier,
 } from "@/lib/plans";
 import { getSiteUrl } from "@/lib/site-url";
@@ -20,13 +20,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const ziinaPaymentInputSchema = z.object({
   tier: z.enum(["starter", "pro", "enterprise"]),
   isAnnual: z.boolean(),
-  currency: z
-    .string()
-    .trim()
-    .transform((c) => c.toUpperCase())
-    .refine((c): c is "AED" | "GBP" | "EUR" => isSupportedCurrency(c), {
-      message: "Currency must be AED, GBP, or EUR",
-    }),
 });
 
 export type CreateZiinaPaymentInput = z.infer<typeof ziinaPaymentInputSchema>;
@@ -36,14 +29,13 @@ export type CreateZiinaPaymentInput = z.infer<typeof ziinaPaymentInputSchema>;
  * Auth: Authorization: Bearer ${ZIINA_API_KEY}
  *
  * For MVP we use one-time payments (test=true in development). Recurring subscriptions later.
- * Amounts: minor units (fils / pence / cents) from getTierPricing().
+ * Amounts: GBP pence from getTierPricing() — global currency is GBP (£) only.
  */
 export async function createZiinaPaymentAction(
   tier: UserTier,
   isAnnual: boolean,
-  currency: string,
 ): Promise<ActionResult<{ redirectUrl: string }>> {
-  const parsed = ziinaPaymentInputSchema.safeParse({ tier, isAnnual, currency });
+  const parsed = ziinaPaymentInputSchema.safeParse({ tier, isAnnual });
   if (!parsed.success) {
     const msg = parsed.error.issues.map((i) => i.message).join("; ");
     return { ok: false, error: msg || "Invalid payment request" };
@@ -86,11 +78,7 @@ export async function createZiinaPaymentAction(
 
   let pricing;
   try {
-    pricing = getTierPricing(
-      parsed.data.tier,
-      parsed.data.isAnnual,
-      parsed.data.currency,
-    );
+    pricing = getTierPricing(parsed.data.tier, parsed.data.isAnnual);
   } catch (e) {
     const m = e instanceof Error ? e.message : "Invalid pricing";
     return { ok: false, error: m };
@@ -105,7 +93,7 @@ export async function createZiinaPaymentAction(
     user_id: user.id,
     tier: paidTier,
     billing_interval: billingInterval,
-    currency: parsed.data.currency,
+    currency: PRICING_CURRENCY_CODE,
   });
 
   if (opErr) {
@@ -176,15 +164,11 @@ export async function createZiinaPaymentAction(
   }
 }
 
-/** @deprecated Use createZiinaPaymentAction — kept for older imports (AED only). */
+/** @deprecated Use createZiinaPaymentAction — kept for older imports. */
 export async function createCheckoutSessionAction(
   input: { tier: PaidTier; billingInterval: "month" | "year" },
 ): Promise<ActionResult<{ url: string }>> {
-  const r = await createZiinaPaymentAction(
-    input.tier,
-    input.billingInterval === "year",
-    "AED",
-  );
+  const r = await createZiinaPaymentAction(input.tier, input.billingInterval === "year");
   if (!r.ok) return r;
   return { ok: true, data: { url: r.data.redirectUrl } };
 }

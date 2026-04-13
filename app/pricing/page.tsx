@@ -3,13 +3,13 @@ import Link from "next/link";
 
 import { PricingPlans } from "@/app/pricing/pricing-plans";
 import { LogoutButton } from "@/components/logout-button";
-import { AED_MONTHLY_MAJOR, ANNUAL_MONTHS_CHARGED } from "@/lib/plans";
+import { ANNUAL_MONTHS_CHARGED, GBP_MONTHLY_MAJOR } from "@/lib/plans";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "LeadForge tiers from The Intercept to The Sovereign — High-Value Signals, L3 depth, and enterprise-grade intelligence.",
+    "LeadForge tiers from The Intercept to The Sovereign — High-Signal Leads, L3 depth, and enterprise-grade intelligence.",
   alternates: { canonical: "/pricing" },
   openGraph: {
     title: "Pricing — LeadForge by MTDFIX",
@@ -180,8 +180,8 @@ export default async function PricingPage({
               fontSize: "1.05rem",
             }}
           >
-            <strong style={{ color: "#f4f4f5" }}>The Sovereign Guru stack</strong> — map High-Value
-            Signals, run depth where it matters, and keep the “how” behind the curtain. Pricing
+            <strong style={{ color: "#f4f4f5" }}>The Sovereign Guru stack</strong> — map High-Signal
+            Leads, run depth where it matters, and keep the “how” behind the curtain. Pricing
             matches the leverage, not the busywork.
           </p>
           <p
@@ -212,19 +212,19 @@ export default async function PricingPage({
             }}
           >
             <strong style={{ color: "#fafafa" }}>
-              {AED_MONTHLY_MAJOR.starter.toLocaleString("en-US")} AED
+              £{GBP_MONTHLY_MAJOR.starter.toLocaleString("en-GB")}
             </strong>{" "}
             ·{" "}
             <strong style={{ color: "#fafafa" }}>
-              {AED_MONTHLY_MAJOR.pro.toLocaleString("en-US")} AED
+              £{GBP_MONTHLY_MAJOR.pro.toLocaleString("en-GB")}
             </strong>{" "}
             ·{" "}
-            <strong style={{ color: "#fafafa" }}>12,000+ AED</strong> / month list (UAE) · USD list
-            approximates for GBP/EUR. Annual = {ANNUAL_MONTHS_CHARGED} months charged (two on us). Pay
-            in <strong style={{ color: "#fafafa" }}>AED</strong>,{" "}
-            <strong style={{ color: "#fafafa" }}>GBP</strong>, or{" "}
-            <strong style={{ color: "#fafafa" }}>EUR</strong> at checkout (Ziina). Enterprise opens
-            via inquiry.
+            <strong style={{ color: "#fafafa" }}>
+              £{GBP_MONTHLY_MAJOR.enterprise.toLocaleString("en-GB")}+
+            </strong>{" "}
+            / mo. list (GBP). Annual = {ANNUAL_MONTHS_CHARGED} months charged (two on us). Checkout is
+            in <strong style={{ color: "#fafafa" }}>GBP (£)</strong> (Ziina). Enterprise opens via
+            private briefing.
           </p>
         </header>
 

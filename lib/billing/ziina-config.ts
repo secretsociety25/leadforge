@@ -1,7 +1,7 @@
 export type BillingInterval = "month" | "year";
 
 export function getZiinaCurrencyCode(): string {
-  return process.env.ZIINA_CURRENCY_CODE?.trim().toUpperCase() || "AED";
+  return process.env.ZIINA_CURRENCY_CODE?.trim().toUpperCase() || "GBP";
 }
 
 export function getZiinaApiBase(): string {

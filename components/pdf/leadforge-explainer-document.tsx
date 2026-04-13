@@ -7,12 +7,7 @@ import {
   Link,
 } from "@react-pdf/renderer";
 
-/** Marketing-friendly AED / month (from USD list × ~3.67). */
-const PRICING_AED = {
-  starter: 180,
-  pro: 363,
-  enterprise: 914,
-} as const;
+import { GBP_MONTHLY_MAJOR } from "@/lib/plans";
 
 const colors = {
   bg: "#09090b",
@@ -293,7 +288,7 @@ export function LeadForgeExplainerDocument() {
           LeadForge — AI-Powered{"\n"}B2B Lead Generation
         </Text>
         <Text style={styles.heroSubtitle}>
-          Upload your leads. Get hyper-personalized cold emails in minutes. One workspace for CSV
+          Upload your leads. Get hyper-personalised cold emails in minutes. One workspace for CSV
           import, AI drafting, and export — built for reps who outgrow templates.
         </Text>
 
@@ -353,7 +348,7 @@ export function LeadForgeExplainerDocument() {
             <Text style={styles.stepNum}>2</Text>
           </View>
           <View style={styles.stepBody}>
-            <Text style={styles.stepTitle}>AI analyzes context & writes emails</Text>
+            <Text style={styles.stepTitle}>AI analyses context & writes emails</Text>
             <Text style={styles.stepText}>
               Our models read the signal you provide and produce short, natural cold emails — not
               generic mail-merge paragraphs.
@@ -399,15 +394,17 @@ export function LeadForgeExplainerDocument() {
       {/* Page 4 — Pricing + CTA */}
       <Page size="A4" style={styles.page}>
         <Text style={styles.eyebrow}>Pricing</Text>
-        <Text style={styles.sectionTitle}>Simple tiers (AED / month)</Text>
+        <Text style={styles.sectionTitle}>Simple tiers (£ / month)</Text>
         <Text style={styles.sectionLead}>
-          List pricing shown in UAE dirhams. Annual billing and other currencies available on the site.
+          List pricing in British pounds. Annual billing is available on the site.
         </Text>
 
         <View style={styles.pricingRow}>
           <View style={[styles.tierCol, styles.tierCard]}>
             <Text style={styles.tierName}>Starter</Text>
-            <Text style={styles.tierPrice}>{PRICING_AED.starter} AED</Text>
+            <Text style={styles.tierPrice}>
+              £{GBP_MONTHLY_MAJOR.starter.toLocaleString("en-GB")} / month
+            </Text>
             <Text style={styles.tierHint}>per month · entry scale</Text>
           </View>
 
@@ -416,13 +413,17 @@ export function LeadForgeExplainerDocument() {
               <Text style={styles.popularBadgeText}>Most popular</Text>
             </View>
             <Text style={styles.tierName}>Pro</Text>
-            <Text style={styles.tierPrice}>{PRICING_AED.pro} AED</Text>
+            <Text style={styles.tierPrice}>
+              £{GBP_MONTHLY_MAJOR.pro.toLocaleString("en-GB")} / month
+            </Text>
             <Text style={styles.tierHint}>per month · growing teams</Text>
           </View>
 
           <View style={[styles.tierCol, styles.tierCard]}>
             <Text style={styles.tierName}>Enterprise</Text>
-            <Text style={styles.tierPrice}>{PRICING_AED.enterprise} AED</Text>
+            <Text style={styles.tierPrice}>
+              £{GBP_MONTHLY_MAJOR.enterprise.toLocaleString("en-GB")} / month
+            </Text>
             <Text style={styles.tierHint}>per month · high volume</Text>
           </View>
         </View>

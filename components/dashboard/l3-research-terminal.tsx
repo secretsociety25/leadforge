@@ -5,20 +5,20 @@ import Papa from "papaparse";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const FEED_LINES = [
-  "[L3] Mapping Social Graph...",
-  "[SIGINT] Intercepting Market Signals...",
-  "[NEURAL] Warming Psychographic Manifold...",
-  "[L3] Synthesizing Executive Intent...",
-  "[L3] Session handshake OK · vector dim 3072",
-  "[INGEST] Parsing Prospeo schema · columns matched: 14/14",
-  "[SIGINT] Pulling 10-K §1A · risk lexicon score 0.74",
-  "[L3] Cross-encoding pain signals vs. ICP template v4",
-  "[NEURAL] Attention heads · business pain hypothesis #2 rising",
-  "[SIGINT] Earnings call Q3 · “efficiency” mentions +340%",
-  "[L3] Confidence calibration · ECE 0.03",
+  "[L3] Mapping Graph · high-signal layer online",
+  "[L3] Social-graph traversal · edge weights converging",
+  "[SIGINT] Intercepting market signals · noise floor low",
+  "[NEURAL] Warming Psychographic Manifold…",
+  "[L3] Executive intent vector · centroid update",
+  "[INGEST] Prospeo schema aligned · identity columns locked",
+  "[L3] Cross-encoding high-signal traits vs. ICP template v4",
+  "[NEURAL] Multi-channel signal resolution · hypothesis #2 rising",
+  "[SIGINT] Competitive signal delta · lexicon score stable",
+  "[L3] Confidence calibration · ECE nominal",
   "[EXPORT] Staging row batch · AES-256 at rest",
   "[NEURAL] Hallucination guard · pass",
-  "[L3] Psychographic score composite · weighting executive…",
+  "[L3] Psychographic composite · executive weighting…",
+  "[L3] Mapping Graph depth +1 · manifold coverage OK",
 ] as const;
 
 type PipelineRow = {
@@ -113,7 +113,7 @@ function firstNameFromFull(full: string) {
 }
 
 function researchSummaryPlaceholder(company: string) {
-  const c = company === "—" ? "the organization" : company;
+  const c = company === "—" ? "the organisation" : company;
   return `Identified scaling bottleneck at ${c}. Highly receptive to AI-automation messaging due to recent expansion.`;
 }
 
@@ -237,7 +237,7 @@ export function L3ResearchTerminal() {
         );
         await new Promise((r) => setTimeout(r, 80));
 
-        appendFeed(`[L3] Extracting psychographic data for ${name} at ${company}...`);
+        appendFeed(`[L3] Psychographic synthesis · mapping graph for ${name} at ${company}…`);
         await new Promise((r) => setTimeout(r, 260));
 
         if (processRunIdRef.current !== runId) return;
@@ -314,7 +314,7 @@ export function L3ResearchTerminal() {
           }
 
           appendFeed(
-            `[INGEST] ${mapped.length} contact(s) validated — commencing L3 neural extraction…`,
+            `[INGEST] ${mapped.length} high-signal contact(s) validated — L3 neural plane online…`,
           );
           window.setTimeout(() => {
             if (ingestSession !== ingestSessionRef.current) return;

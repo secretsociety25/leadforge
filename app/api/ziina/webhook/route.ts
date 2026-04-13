@@ -1,13 +1,12 @@
 import crypto from "crypto";
 
 import { AFFILIATE_COMMISSION_RATE } from "@/lib/affiliate/constants";
-import { getTierPricing } from "@/lib/plans";
-import type { PaidTier } from "@/lib/plans";
 import {
+  getTierPricing,
   isPaidTier,
-  isSupportedCurrency,
+  PRICING_CURRENCY_CODE,
   resolvePaidPlanFromMinorAmount,
-  type SupportedCurrency,
+  type PaidTier,
 } from "@/lib/plans";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -155,24 +154,14 @@ export async function POST(request: Request) {
 
   const tier = op.tier as PaidTier;
   const billingInterval = op.billing_interval === "year" ? "year" : "month";
-  const rawCurrency = typeof op.currency === "string" ? op.currency : "AED";
-  if (!isSupportedCurrency(rawCurrency)) {
-    console.warn("[ziina webhook] unknown currency", rawCurrency);
-    return new Response(JSON.stringify({ ok: true, received: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-  const currency: SupportedCurrency = rawCurrency;
 
-  if (payloadCurrency && payloadCurrency !== currency) {
-    console.warn("[ziina webhook] currency_code mismatch", payloadCurrency, currency);
+  if (payloadCurrency && payloadCurrency !== "GBP") {
+    console.warn("[ziina webhook] currency_code expected GBP", payloadCurrency);
   }
 
   let expectedAmount: number;
   try {
-    expectedAmount = getTierPricing(tier, billingInterval === "year", currency)
-      .amountMinorUnits;
+    expectedAmount = getTierPricing(tier, billingInterval === "year").amountMinorUnits;
   } catch {
     return new Response(JSON.stringify({ ok: false, error: "Pricing config error" }), {
       status: 500,
@@ -180,7 +169,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const resolved = resolvePaidPlanFromMinorAmount(amount, currency);
+  const resolved = resolvePaidPlanFromMinorAmount(amount);
   if (resolved && (resolved.tier !== tier || resolved.isAnnual !== (billingInterval === "year"))) {
     console.warn("[ziina webhook] amount map vs checkout row", {
       resolved,
@@ -208,7 +197,7 @@ export async function POST(request: Request) {
       ziina_last_payment_intent_id: paymentIntentId,
       payment_customer_id: paymentIntentId,
       tier_expires_at: expiresAt,
-      billing_currency: currency,
+      billing_currency: PRICING_CURRENCY_CODE,
     })
     .eq("id", op.user_id);
 
@@ -242,7 +231,7 @@ export async function POST(request: Request) {
           payment_intent_id: paymentIntentId,
           amount_paid_minor: amount,
           commission_minor: commissionMinor,
-          currency,
+          currency: PRICING_CURRENCY_CODE,
         });
 
         if (commErr && (commErr as { code?: string }).code !== "23505") {

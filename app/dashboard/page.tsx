@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function DashboardPage() {
   return (
-    <div className="min-h-full min-w-0 bg-black">
+    <div className="min-w-0 bg-black min-h-screen text-white">
       <L3ResearchTerminal />
     </div>
   );

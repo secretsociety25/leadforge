@@ -1,8 +1,13 @@
-/* Tailwind CSS v4: @import "tailwindcss" loads base + components + utilities in one pass.
-   (Tailwind v3 used three lines: @tailwind base; @tailwind components; @tailwind utilities;) */
+/*
+ * Tailwind CSS — single entry (v4).
+ * Equivalent to v3’s:
+ *   @tailwind base;
+ *   @tailwind components;
+ *   @tailwind utilities;
+ */
 @import "tailwindcss";
 
-/* Explicit scan paths so utilities used under app/ and components/ always generate (fixes “unstyled” UI after cache drift). */
+/* Scan paths: utilities must be generated for these trees (avoids “unstyled” UI when the dev server/cache drifts). */
 @source "./**/*.{js,ts,jsx,tsx,mdx}";
 @source "../components/**/*.{js,ts,jsx,tsx,mdx}";
 

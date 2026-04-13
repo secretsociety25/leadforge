@@ -1,7 +1,7 @@
 import type { SupportedCurrency } from "@/lib/plans";
 import { isSupportedCurrency } from "@/lib/plans";
 
-/** Display minor units (fils, pence, cents) as currency. */
+/** Display minor units (pence for GBP) as currency. */
 export function formatMinorUnits(amountMinor: number, currencyRaw: string): string {
   const c = currencyRaw.toUpperCase();
   const currency: SupportedCurrency = isSupportedCurrency(c) ? c : "GBP";

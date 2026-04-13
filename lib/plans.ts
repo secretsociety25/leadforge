@@ -2,55 +2,29 @@ import type { UserTier } from "@/lib/database.types";
 
 /**
  * Monthly lead caps per tier must match `public.insert_lead_with_quota` in
- * supabase/migrations/20260330120100_update_lead_quota_case.sql (CASE on user_tier).
+ * supabase/migrations (CASE on user_tier).
  *
- * Billing: For MVP we use one-time Ziina payment intents per checkout. Recurring
- * subscriptions (renewals) are planned for a later release.
+ * Billing: one-time Ziina payment intents. All list pricing and checkout are **GBP (£)** only.
  */
 
 /** Paid plans exposed on Pricing / Ziina checkout (signup defaults to `free`). */
 export const PAID_TIERS = ["starter", "pro", "enterprise"] as const;
 export type PaidTier = (typeof PAID_TIERS)[number];
 
-export const SUPPORTED_CURRENCIES = ["AED", "GBP", "EUR"] as const;
-export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
+/** Global billing currency — no AED/EUR toggles or alternate checkout currencies. */
+export const PRICING_CURRENCY_CODE = "GBP" as const;
+export type SupportedCurrency = typeof PRICING_CURRENCY_CODE;
 
-export const CURRENCY_TAB: Record<
-  SupportedCurrency,
-  { code: string; title: string; hint: string }
-> = {
-  AED: { code: "AED", title: "UAE & GCC", hint: "United Arab Emirates dirham" },
-  GBP: { code: "GBP", title: "United Kingdom", hint: "Pound sterling" },
-  EUR: { code: "EUR", title: "Euro area", hint: "Euro" },
+export const SUPPORTED_CURRENCIES = [PRICING_CURRENCY_CODE] as const;
+
+/** GBP monthly list prices (whole pounds). */
+export const GBP_MONTHLY_MAJOR: Record<PaidTier, number> = {
+  starter: 550,
+  pro: 1250,
+  enterprise: 2500,
 };
 
-/** USD / month list prices — used for GBP/EUR FX approximation at checkout. */
-export const PAID_TIER_USD_MONTHLY: Record<PaidTier, number> = {
-  starter: 79,
-  pro: 149,
-  enterprise: 349,
-};
-
-/**
- * AED monthly list prices (whole dirhams). Shown and charged when currency is AED — overrides USD×FX.
- */
-/** AED monthly list prices (dirhams) — used for AED checkout and on-card copy when currency is AED. */
-export const AED_MONTHLY_MAJOR: Record<PaidTier, number> = {
-  starter: 2500,
-  pro: 5500,
-  enterprise: 12_000,
-};
-
-/**
- * Approximate USD → local major unit (whole numbers, marketing-friendly).
- * AED uses {@link AED_MONTHLY_MAJOR} instead.
- */
-const USD_TO_MONTHLY_MAJOR: Record<Exclude<SupportedCurrency, "AED">, (usd: number) => number> = {
-  GBP: (usd) => Math.round(usd * 0.776),
-  EUR: (usd) => Math.round(usd * 0.918),
-};
-
-/** Annual = 10 × monthly local price (two months free vs paying 12 × monthly). */
+/** Annual = 10 × monthly (two months free vs paying 12 × monthly). */
 export const ANNUAL_MONTHS_CHARGED = 10;
 
 export type TierLimits = {
@@ -60,139 +34,100 @@ export type TierLimits = {
 
 export const TIER_LIMITS: Record<UserTier, TierLimits> = {
   free: { monthlyLeads: 25, maxCampaigns: 1 },
-  starter: { monthlyLeads: 500, maxCampaigns: 5 },
-  pro: { monthlyLeads: 2500, maxCampaigns: 25 },
+  starter: { monthlyLeads: 1000, maxCampaigns: 5 },
+  pro: { monthlyLeads: 3500, maxCampaigns: 25 },
   enterprise: { monthlyLeads: 10_000, maxCampaigns: 100 },
 };
 
-const MIN_MINOR_UNITS: Record<SupportedCurrency, number> = {
-  AED: 200,
-  GBP: 30,
-  EUR: 50,
-};
+const MIN_MINOR_UNITS_GBP = 30;
 
 export type TierPricing = {
-  /** Smallest currency unit (AED fils, GBP pence, EUR cents). */
+  /** Smallest currency unit (pence). */
   amountMinorUnits: number;
   /** @deprecated Use amountMinorUnits */
   amountInFils: number;
   currency: SupportedCurrency;
   /** Human-readable line for receipts / Ziina `message` fallback context. */
   description: string;
-  /** Localized price for UI, e.g. €45.00, £38.00, 180.00 AED */
+  /** Localized price for UI, e.g. £550 */
   displayAmount: string;
 };
 
 export function isSupportedCurrency(c: string): c is SupportedCurrency {
-  return (SUPPORTED_CURRENCIES as readonly string[]).includes(c);
+  return c.toUpperCase() === PRICING_CURRENCY_CODE;
 }
 
-function monthlyMajorUnits(tier: PaidTier, currency: SupportedCurrency): number {
-  if (currency === "AED") {
-    return AED_MONTHLY_MAJOR[tier];
-  }
-  return USD_TO_MONTHLY_MAJOR[currency](PAID_TIER_USD_MONTHLY[tier]);
-}
-
-function majorUnitsForPlan(
-  tier: PaidTier,
-  isAnnual: boolean,
-  currency: SupportedCurrency,
-): number {
-  const m = monthlyMajorUnits(tier, currency);
+function majorUnitsForPlan(tier: PaidTier, isAnnual: boolean): number {
+  const m = GBP_MONTHLY_MAJOR[tier];
   return isAnnual ? m * ANNUAL_MONTHS_CHARGED : m;
 }
 
-/**
- * Localized display: €45.00 / £38.00 / 180.00 AED style.
- */
-export function formatPriceDisplay(
-  majorUnits: number,
-  currency: SupportedCurrency,
-): string {
-  if (currency === "AED") {
-    if (Number.isInteger(majorUnits)) {
-      return `${majorUnits.toLocaleString("en-US")} AED`;
-    }
-    return `${majorUnits.toFixed(2)} AED`;
+function formatGbpMajor(majorUnits: number): string {
+  if (Number.isInteger(majorUnits)) {
+    return `£${majorUnits.toLocaleString("en-GB")}`;
   }
-  const locale = currency === "GBP" ? "en-GB" : "en-IE";
   try {
-    return new Intl.NumberFormat(locale, {
+    return new Intl.NumberFormat("en-GB", {
       style: "currency",
-      currency,
-      minimumFractionDigits: 2,
+      currency: "GBP",
+      minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     }).format(majorUnits);
   } catch {
-    return `${majorUnits.toFixed(2)} ${currency}`;
+    return `£${majorUnits.toFixed(2)}`;
   }
 }
 
 /**
- * List price in minor units + display string. Derived from USD base with
- * approximate FX; annual applies a 10-month charge (2 months free).
+ * List price in minor units + display string. Annual applies a 10-month charge (2 months free).
  */
-export function getTierPricing(
-  tier: UserTier,
-  isAnnual: boolean,
-  currency: SupportedCurrency = "AED",
-): TierPricing {
+export function getTierPricing(tier: UserTier, isAnnual: boolean): TierPricing {
   if (tier === "free") {
     throw new Error("No paid pricing for free tier");
   }
-  if (!isSupportedCurrency(currency)) {
-    throw new Error(`Unsupported currency: ${currency}`);
-  }
 
   const paid = tier as PaidTier;
-  const major = majorUnitsForPlan(paid, isAnnual, currency);
+  const major = majorUnitsForPlan(paid, isAnnual);
   const amountMinorUnits = Math.round(major * 100);
-  const min = MIN_MINOR_UNITS[currency];
-  if (amountMinorUnits < min) {
-    throw new Error(`Amount below minimum for ${currency} (${min} minor units)`);
+  if (amountMinorUnits < MIN_MINOR_UNITS_GBP) {
+    throw new Error(`Amount below minimum for GBP (${MIN_MINOR_UNITS_GBP} minor units)`);
   }
 
   const cadence = isAnnual ? "Annual" : "Monthly";
-  const displayAmount = formatPriceDisplay(major, currency);
+  const displayAmount = formatGbpMajor(major);
   const description = `LeadForge ${paid} ${cadence} — ${displayAmount}`;
 
   return {
     amountMinorUnits,
     amountInFils: amountMinorUnits,
-    currency,
+    currency: PRICING_CURRENCY_CODE,
     description,
     displayAmount,
   };
 }
 
-/** Card headline price (same as getTierPricing().displayAmount, with tier-specific marketing tweaks). */
-export function formatTierMoney(
-  tier: PaidTier,
-  isAnnual: boolean,
-  currency: SupportedCurrency,
-): string {
-  const p = getTierPricing(tier, isAnnual, currency);
-  if (tier === "enterprise" && currency === "AED") {
-    const major = majorUnitsForPlan(tier, isAnnual, currency);
-    const n = major.toLocaleString("en-US");
-    return `${n}+ AED`;
+/**
+ * Card headline price — enterprise shows £2,500+ / £25,000+ style for positioning.
+ */
+export function formatTierMoney(tier: PaidTier, isAnnual: boolean): string {
+  const major = majorUnitsForPlan(tier, isAnnual);
+  const formatted = `£${major.toLocaleString("en-GB")}`;
+  if (tier === "enterprise") {
+    return `${formatted}+`;
   }
-  return p.displayAmount;
+  return formatted;
 }
 
 /**
- * Resolve tier + annual flag from Ziina amount + currency (webhook cross-check / fallback).
+ * Resolve tier + annual flag from Ziina amount (GBP pence only).
  */
 export function resolvePaidPlanFromMinorAmount(
   amountMinor: number,
-  currency: SupportedCurrency,
 ): { tier: PaidTier; isAnnual: boolean } | null {
-  if (!isSupportedCurrency(currency)) return null;
   for (const tier of PAID_TIERS) {
     for (const isAnnual of [false, true]) {
       try {
-        const p = getTierPricing(tier, isAnnual, currency);
+        const p = getTierPricing(tier, isAnnual);
         if (p.amountMinorUnits === amountMinor) {
           return { tier, isAnnual };
         }
@@ -210,42 +145,36 @@ export const PAID_TIER_DISPLAY: Record<
     name: string;
     description: string;
     highlights: string[];
-    /** Shown on pricing cards as the signal-volume headline */
     leadVolumeLabel: string;
   }
 > = {
   starter: {
-    name: "Starter · The Intercept",
+    name: "Starter (£550) · The Intercept",
     description:
-      "Entry sovereignty — map the field, qualify fast, and keep your edge without exposing how the engine thinks.",
-    leadVolumeLabel: "500 High-Value Signals / month",
-    highlights: [
-      "5 campaigns",
-      "Neural Social-Graph Mapping & AI drafts",
-      "Dedicated Signal Analyst",
-    ],
+      "Fast qualification and sovereign positioning — enough runway to test the engine without overexposing process.",
+    leadVolumeLabel: "1,000 High-Signal Leads / mo.",
+    highlights: ["Standard L3 Neural Mapping", "Classified Dossier access"],
   },
   pro: {
-    name: "Pro · The Infiltrator",
+    name: "Pro (£1,250) · The Infiltrator",
     description:
-      "Operational depth for teams that run outbound as a system — scale, priority, and room to win in crowded inboxes.",
-    leadVolumeLabel: "2,500 High-Value Signals / month",
+      "Serious outbound cadence — deeper synthesis, faster queue, and multi-channel coherence when inboxes get noisy.",
+    leadVolumeLabel: "3,500 High-Signal Leads / mo.",
     highlights: [
-      "Priority L3 Queue Access",
-      "25 campaigns",
-      "Priority support",
-      "Built for serious outbound volume",
+      "Deep Psychographic Synthesis",
+      "Priority L3 Queue access",
+      "Multi-Channel Signal Resolution",
     ],
   },
   enterprise: {
-    name: "Enterprise · The Sovereign",
+    name: "Enterprise (£2,500+) · The Sovereign",
     description:
-      "Custom intelligence and throughput for orgs where pipeline is the business — governance, control, and bespoke playbooks.",
-    leadVolumeLabel: "10,000+ High-Value Signals / month",
+      "Board-grade throughput — bespoke neural layers, analyst-led execution, and integrations that match how your firm actually runs revenue.",
+    leadVolumeLabel: "10,000+ High-Signal Leads / mo.",
     highlights: [
-      "100 campaigns",
-      "Dedicated success & bespoke workflows",
-      "Volume-ready infrastructure",
+      "Custom Neural Layer Training (Brand Voice Alignment)",
+      "Dedicated Signal Analyst (Done-For-You Management)",
+      "Bespoke CRM Integrations",
     ],
   },
 };

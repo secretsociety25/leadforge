@@ -6,7 +6,7 @@ import { LoginForm } from "@/app/login/login-form";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to LeadForge — personalized B2B outbound and dashboard.",
+  description: "Sign in to LeadForge — personalised B2B outbound and dashboard.",
 };
 
 function LoginFormFallback() {

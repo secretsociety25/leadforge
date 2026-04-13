@@ -5,20 +5,16 @@ import { useCallback, useState } from "react";
 import { createZiinaPaymentAction } from "@/app/actions/billing";
 import type { UserTier } from "@/lib/database.types";
 import {
-  AED_MONTHLY_MAJOR,
   ANNUAL_MONTHS_CHARGED,
-  CURRENCY_TAB,
   formatTierMoney,
+  GBP_MONTHLY_MAJOR,
   PAID_TIER_DISPLAY,
-  PAID_TIER_USD_MONTHLY,
   PAID_TIERS,
-  SUPPORTED_CURRENCIES,
   type PaidTier,
-  type SupportedCurrency,
 } from "@/lib/plans";
 
 const ENTERPRISE_INQUIRY_HREF =
-  "mailto:hello@mtdfix.co.uk?subject=LeadForge%20Enterprise%20%E2%80%94%20Custom%20Intelligence";
+  "mailto:hello@mtdfix.co.uk?subject=LeadForge%20Enterprise%20%E2%80%94%20Request%20Private%20Briefing";
 
 const TIERS = PAID_TIERS;
 
@@ -47,7 +43,6 @@ function normalizeClientError(e: unknown): string {
 
 export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
   const [isAnnual, setIsAnnual] = useState(false);
-  const [currency, setCurrency] = useState<SupportedCurrency>("AED");
   const [loadingTier, setLoadingTier] = useState<PaidTier | null>(null);
   const [subscribePhase, setSubscribePhase] = useState<SubscribePhase>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -61,11 +56,7 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
       setSubscribePhase("creating");
       let redirected = false;
       try {
-        const result = await createZiinaPaymentAction(
-          tier as UserTier,
-          isAnnual,
-          currency as string,
-        );
+        const result = await createZiinaPaymentAction(tier as UserTier, isAnnual);
         if (!result.ok) {
           setError(result.error);
           return;
@@ -90,7 +81,7 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
         }
       }
     },
-    [isAnnual, currency],
+    [isAnnual],
   );
 
   const border = "1px solid rgba(255,255,255,0.1)";
@@ -188,72 +179,6 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
         </p>
       ) : null}
 
-      <section style={{ marginBottom: "1.75rem" }}>
-        <p
-          style={{
-            fontSize: "0.75rem",
-            fontWeight: 600,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color: muted,
-            marginBottom: "0.5rem",
-            textAlign: "center",
-          }}
-        >
-          Currency
-        </p>
-        <div
-          role="group"
-          aria-label="Billing currency"
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 8,
-            justifyContent: "center",
-            padding: 6,
-            borderRadius: 12,
-            background: "rgba(255,255,255,0.04)",
-            border,
-            maxWidth: 520,
-            margin: "0 auto",
-          }}
-        >
-          {SUPPORTED_CURRENCIES.map((c) => {
-            const selected = currency === c;
-            const meta = CURRENCY_TAB[c];
-            return (
-              <button
-                key={c}
-                type="button"
-                aria-pressed={selected}
-                title={meta.hint}
-                disabled={checkoutBusy}
-                onClick={() => setCurrency(c)}
-                style={{
-                  flex: "1 1 140px",
-                  minWidth: 120,
-                  border: selected ? "1px solid rgba(167, 139, 250, 0.6)" : "1px solid transparent",
-                  borderRadius: 10,
-                  padding: "0.6rem 0.85rem",
-                  cursor: checkoutBusy ? "not-allowed" : "pointer",
-                  opacity: checkoutBusy ? 0.55 : 1,
-                  textAlign: "left",
-                  background: selected ? "rgba(255,255,255,0.08)" : "transparent",
-                  color: "#fafafa",
-                }}
-              >
-                <span style={{ display: "block", fontSize: "0.95rem", fontWeight: 700 }}>
-                  {meta.code}
-                </span>
-                <span style={{ display: "block", fontSize: "0.72rem", color: muted, marginTop: 2 }}>
-                  {meta.title}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
       <section
         style={{
           display: "flex",
@@ -312,7 +237,7 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
         <span style={{ fontSize: "0.8rem", color: isAnnual ? "rgba(134, 239, 172, 0.9)" : muted }}>
           {isAnnual
             ? `Pay for ${ANNUAL_MONTHS_CHARGED} months — two months on us`
-            : "Billed monthly in selected currency"}
+            : "Billed monthly — GBP (£)"}
         </span>
       </section>
 
@@ -397,43 +322,46 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
           const isPopular = tier === "pro";
           const label =
             tier === "enterprise"
-              ? "Inquire for Custom Intelligence"
+              ? "Request Private Briefing"
               : busy && subscribePhase === "creating"
                 ? "Preparing checkout…"
                 : busy && subscribePhase === "redirecting"
                   ? "Redirecting to Ziina…"
                   : "Subscribe";
-          const localized = formatTierMoney(tier, isAnnual, currency);
-          const usd = PAID_TIER_USD_MONTHLY[tier];
-          const usdAnnualTotal = usd * ANNUAL_MONTHS_CHARGED;
-          const usdLabel = isAnnual
-            ? `$${usdAnnualTotal.toLocaleString("en-US")}/year USD list`
-            : `$${usd}/month USD list`;
-          const aedMonthly = AED_MONTHLY_MAJOR[tier];
-          const aedAnnualMajor = aedMonthly * ANNUAL_MONTHS_CHARGED;
-          const aedListCaption =
+          const localized = formatTierMoney(tier, isAnnual);
+          const monthlyGbp = GBP_MONTHLY_MAJOR[tier];
+          const annualGbp = monthlyGbp * ANNUAL_MONTHS_CHARGED;
+          const fmtGbp = (n: number) => `£${n.toLocaleString("en-GB")}`;
+          const listCaption =
             tier === "enterprise"
               ? isAnnual
-                ? `From ${aedAnnualMajor.toLocaleString("en-US")}+ AED / year list`
-                : "From 12,000+ AED / month list"
+                ? `${fmtGbp(annualGbp)}+ / yr list`
+                : `${fmtGbp(monthlyGbp)}+ / mo. list`
               : isAnnual
-                ? `${aedAnnualMajor.toLocaleString("en-US")} AED / year list`
-                : `${aedMonthly.toLocaleString("en-US")} AED / month list`;
-          const listCaption = currency === "AED" ? aedListCaption : usdLabel;
+                ? `${fmtGbp(annualGbp)} / yr list`
+                : `${fmtGbp(monthlyGbp)} / mo. list`;
 
           return (
             <article
               key={tier}
               style={{
                 position: "relative",
-                border: isPopular ? "1px solid rgba(167, 139, 250, 0.55)" : border,
+                border: isPopular
+                  ? "1px solid rgba(165, 180, 252, 0.45)"
+                  : border,
                 borderRadius: 18,
                 padding: isPopular ? "2.35rem 1.5rem 1.5rem" : "1.6rem 1.5rem 1.5rem",
                 background: isPopular
-                  ? "linear-gradient(165deg, rgba(91, 33, 182, 0.22) 0%, rgba(255,255,255,0.04) 45%, rgba(9,9,11,0.4) 100%)"
+                  ? "linear-gradient(165deg, rgba(67, 56, 202, 0.28) 0%, rgba(79, 70, 229, 0.12) 38%, rgba(9,9,11,0.5) 100%)"
                   : "rgba(255,255,255,0.03)",
                 boxShadow: isPopular
-                  ? "0 0 0 1px rgba(124, 58, 237, 0.12), 0 24px 48px -12px rgba(0, 0, 0, 0.55), 0 0 40px -8px rgba(124, 58, 237, 0.2)"
+                  ? [
+                      "0 0 0 1px rgba(129, 140, 248, 0.25)",
+                      "inset 0 1px 0 0 rgba(199, 210, 254, 0.14)",
+                      "0 0 56px -6px rgba(99, 102, 241, 0.55)",
+                      "0 0 100px -20px rgba(129, 140, 248, 0.42)",
+                      "0 24px 56px -14px rgba(0, 0, 0, 0.6)",
+                    ].join(", ")
                   : "none",
                 display: "flex",
                 flexDirection: "column",
@@ -457,7 +385,7 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
                     borderRadius: 999,
                   }}
                 >
-                  Most popular
+                  High-signal · Pro
                 </span>
               ) : null}
               <header>
@@ -486,7 +414,7 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
                 >
                   {localized}
                   <span style={{ fontWeight: 500, fontSize: "0.82rem", color: muted }}>
-                    {isAnnual ? " / year" : " / month"}
+                    {isAnnual ? " / yr" : " / mo."}
                   </span>
                 </p>
                 <p
@@ -494,8 +422,13 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
                     margin: "0 0 0.6rem",
                     fontSize: "0.95rem",
                     fontWeight: 600,
-                    color: "rgba(167, 243, 208, 0.95)",
+                    color: isPopular
+                      ? "rgba(199, 210, 254, 0.98)"
+                      : "rgba(167, 243, 208, 0.95)",
                     letterSpacing: "0.01em",
+                    textShadow: isPopular
+                      ? "0 0 24px rgba(129, 140, 248, 0.45), 0 0 2px rgba(99, 102, 241, 0.35)"
+                      : "none",
                   }}
                 >
                   {def.leadVolumeLabel}
@@ -563,7 +496,7 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
                     boxShadow: busy
                       ? "none"
                       : isPopular
-                        ? "0 4px 20px rgba(124, 58, 237, 0.35), inset 0 1px 0 rgba(255,255,255,0.12)"
+                        ? "0 4px 28px rgba(99, 102, 241, 0.5), 0 0 40px -6px rgba(129, 140, 248, 0.5), inset 0 1px 0 rgba(255,255,255,0.14)"
                         : "0 4px 16px rgba(91, 33, 182, 0.25)",
                     color: "#fff",
                     fontWeight: 600,
