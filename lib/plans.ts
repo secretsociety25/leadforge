@@ -169,7 +169,7 @@ export const PAID_TIER_DISPLAY: Record<
   enterprise: {
     name: "Sovereign (£2,500+) · Market Dominance",
     description:
-      "For the top 1% of UK outbound firms looking for total market dominance.",
+      "Enterprise Market Dominance. We act as your fully managed outbound intelligence department. Bespoke signal layering and dedicated infrastructure management.",
     leadVolumeLabel: "10,000+ signals / mo.",
     highlights: [
       "10,000+ Signals",

@@ -215,6 +215,17 @@ export default async function PricingPage({
           </p>
           <p
             style={{
+              margin: "-0.75rem auto 1.25rem",
+              maxWidth: 720,
+              fontSize: "0.78rem",
+              lineHeight: 1.5,
+              color: "rgba(250,250,250,0.5)",
+            }}
+          >
+            Calculation: 45m research time saved per lead @ £22/hr avg UK SDR rate.
+          </p>
+          <p
+            style={{
               margin: 0,
               color: "rgba(250,250,250,0.5)",
               maxWidth: 600,
@@ -276,8 +287,8 @@ export default async function PricingPage({
             </h2>
             <ul style={{ margin: 0, paddingLeft: "1.05rem", color: "rgba(250,250,250,0.78)", lineHeight: 1.6 }}>
               <li>Salary + NI + benefits</li>
-              <li>Software stack (Apollo, LinkedIn) + tools sprawl</li>
-              <li>Management overhead + ramp time</li>
+              <li>Tools sprawl (Apollo, LinkedIn, enrichment) + seat costs</li>
+              <li>Management overhead + ramp time + quality variance</li>
               <li>
                 Output: manual research for ~<strong style={{ color: "#fafafa" }}>100</strong> leads/week
               </li>
@@ -317,17 +328,26 @@ export default async function PricingPage({
               <span style={{ color: "rgba(250,250,250,0.55)", fontWeight: 650 }}> — £1,250/mo</span>
             </h2>
             <ul style={{ margin: 0, paddingLeft: "1.05rem", color: "rgba(250,250,250,0.86)", lineHeight: 1.6 }}>
+              <li>Flat Monthly Fee (No NI/HR)</li>
+              <li>Unified Signal &amp; Infra Stack</li>
+              <li>Immediate Deployment (Zero Ramp)</li>
               <li>
-                <strong style={{ color: "#fafafa" }}>100% automated</strong> — no management needed
+                <strong style={{ color: "#fafafa" }}>3,500</strong> Exec Briefings / Month
               </li>
               <li>
-                Output: <strong style={{ color: "#fafafa" }}>3,500</strong> Executive Briefing Dossiers / mo.
-              </li>
-              <li>Managed Ghost Node Infrastructure included</li>
-              <li>
-                Recovered labour: <strong style={{ color: "#bbf7d0" }}>£2k+</strong> / mo. for most UK teams
+                Stability Score: <strong style={{ color: "#bbf7d0" }}>100%</strong> (No Churn)
               </li>
             </ul>
+            <p
+              style={{
+                margin: "0.85rem 0 0",
+                fontSize: "0.78rem",
+                lineHeight: 1.5,
+                color: "rgba(250,250,250,0.55)",
+              }}
+            >
+              Calculation: 45m research time saved per lead @ £22/hr avg UK SDR rate.
+            </p>
           </div>
         </section>
 
