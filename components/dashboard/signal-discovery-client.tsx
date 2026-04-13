@@ -1,7 +1,7 @@
 "use client";
 
-import { Radar, Sparkles, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { Loader2, Radar, Sparkles, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export type SignalLeadRow = {
   id: string;
@@ -10,7 +10,14 @@ export type SignalLeadRow = {
   role: string;
   location: string;
   score: string;
+  /** Companies House registry row — company record confirmed via API. */
   status: string;
+  /** Officer name from Companies House `/officers` when returned by the registry. */
+  directorName: string | null;
+  directorTrust: TrustTier;
+  webUrl: string | null;
+  apolloOrgName: string | null;
+  webPresence: WebPresenceTier;
   /** Data provenance for confidence signalling in the dossier. */
   sources?: ("companies_house" | "job_board" | "verified_email")[];
 };
@@ -23,6 +30,35 @@ const SOVEREIGN_SEQUENCE = [
 
 const rowHoverClass =
   "transition-[background-color,box-shadow] duration-200 hover:bg-indigo-500/[0.08] hover:shadow-[inset_0_0_0_1px_rgba(99,102,241,0.22),0_0_24px_-8px_rgba(79,70,229,0.35)]";
+
+export type TrustTier = "verified" | "likely_match" | "unverified";
+
+export type WebPresenceTier = TrustTier | "pending" | "not_found";
+
+function TrustBadge({ tier }: { tier: TrustTier }) {
+  const cfg =
+    tier === "verified"
+      ? {
+          label: "Verified",
+          cls: "border-emerald-500/40 bg-emerald-500/[0.1] text-emerald-300/95",
+        }
+      : tier === "likely_match"
+        ? {
+            label: "Likely match",
+            cls: "border-amber-500/40 bg-amber-500/[0.12] text-amber-200/95",
+          }
+        : {
+            label: "Unverified",
+            cls: "border-zinc-600/50 bg-zinc-800/50 text-zinc-400",
+          };
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${cfg.cls}`}
+    >
+      {cfg.label}
+    </span>
+  );
+}
 
 const NEURAL_SYNTHESIS_LINES = [
   "[NEURAL] Bootstrapping Psychographic Manifold v4.2…",
@@ -38,6 +74,20 @@ type DossierSections = {
   operational: string;
   outreach: string;
 };
+
+function toInputDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function defaultSignalDateRange(): { from: string; to: string } {
+  const end = new Date();
+  const start = new Date(end);
+  start.setDate(start.getDate() - 7);
+  return { from: toInputDateString(start), to: toInputDateString(end) };
+}
 
 function isJohnDoeLead(lead: SignalLeadRow): boolean {
   return lead.name.trim().toLowerCase() === "john doe";
@@ -71,10 +121,13 @@ const JOHN_DOE_CLASSIFIED_DOSSIER_HTML: DossierSections = {
 
 function templateDossierForLead(lead: SignalLeadRow): DossierSections {
   const co = lead.company || "the organisation";
+  const directorLine = lead.directorName
+    ? `Companies House lists ${lead.directorName} as a registered officer (director-class appointment). `
+    : "Registered director name was not returned on the officers fetch — treat identity claims as unverified against the registry. ";
   return {
-    psychographic: `${lead.name} reads as a pragmatic operator in ${lead.role} at ${co}. Public signals suggest a bias toward execution over abstraction: comms emphasise delivery cadence, cross-functional alignment, and risk-aware expansion. L3 classifies the profile as “steady accelerator” — receptive to tools that reduce coordination tax without adding governance overhead.`,
+    psychographic: `${directorLine}${lead.name} is the UK registered company; align outreach to filing-grade facts rather than inferred personas until enrichment confirms contacts.`,
     operational: `Inferred pressure at ${co}: scaling customer delivery while keeping headcount lean. Typical bottlenecks in comparable accounts include pipeline hygiene, inconsistent handoffs between marketing and sales, and manual research steps that cap outbound quality. Territory context (${lead.location}) implies compliance-aware messaging and a preference for concise, evidence-backed proposals.`,
-    outreach: `Lead with a specific operational hypothesis (e.g., “reducing research latency per account”) and offer a tight next step: a 20-minute working review against their ICP parameters. Keep copy factual; anchor to ${co}’s sector motion and ${lead.role} priorities. Close with one measurable outcome for a pilot window (meetings booked, qualified opportunities, or time saved per rep).`,
+    outreach: `Lead with a specific operational hypothesis (e.g., “reducing research latency per account”) and offer a tight next step: a 20-minute working review against their ICP parameters. Keep copy factual; anchor to ${co}’s sector motion. Close with one measurable outcome for a pilot window (meetings booked, qualified opportunities, or time saved per rep).`,
   };
 }
 
@@ -82,6 +135,8 @@ export function SignalDiscoveryClient() {
   const [niche, setNiche] = useState("");
   const [headcount, setHeadcount] = useState("51–200");
   const [location, setLocation] = useState("United Kingdom");
+  const [signalDateFrom, setSignalDateFrom] = useState(() => defaultSignalDateRange().from);
+  const [signalDateTo, setSignalDateTo] = useState(() => defaultSignalDateRange().to);
   const [phase, setPhase] = useState<"idle" | "sovereign" | "done">("idle");
   const [sovereignIndex, setSovereignIndex] = useState(0);
   const [leads, setLeads] = useState<SignalLeadRow[]>([]);
@@ -94,20 +149,45 @@ export function SignalDiscoveryClient() {
   const [intelLoading, setIntelLoading] = useState(false);
   const [synthLog, setSynthLog] = useState<string[]>([]);
   const [intelPanelEntered, setIntelPanelEntered] = useState(false);
+  const [dossierSynthesisRowId, setDossierSynthesisRowId] = useState<string | null>(null);
+  const [webSearchRowId, setWebSearchRowId] = useState<string | null>(null);
+  const [apolloBridgeLog, setApolloBridgeLog] = useState<string[]>([]);
 
   const appendDiscoveryLog = useCallback((line: string) => {
     setDiscoveryLog((prev) => [...prev, line].slice(-40));
   }, []);
 
+  const todayInputMax = toInputDateString(new Date());
+
+  const discoveryDebugQuery = useMemo(
+    () =>
+      new URLSearchParams({
+        size: "20",
+        from: signalDateFrom,
+        to: signalDateTo,
+      }).toString(),
+    [signalDateFrom, signalDateTo],
+  );
+
   const fetchSignals = useCallback(async (): Promise<
     | {
         ok: true;
-        companies: Array<{ companyName: string; companyNumber: string; creationDate: string }>;
+        companies: Array<{
+          companyName: string;
+          companyNumber: string;
+          creationDate: string;
+          directorName?: string | null;
+        }>;
         upstreamItemCount?: number;
       }
     | { ok: false; code: string; hint?: string; details?: string }
   > => {
-    const res = await fetch("/api/discovery?size=20", {
+    const qs = new URLSearchParams({
+      size: "20",
+      from: signalDateFrom,
+      to: signalDateTo,
+    });
+    const res = await fetch(`/api/discovery?${qs}`, {
       method: "GET",
       headers: { Accept: "application/json" },
     });
@@ -139,7 +219,12 @@ export function SignalDiscoveryClient() {
     const data = parsed as
       | {
           ok: true;
-          companies: Array<{ companyName: string; companyNumber: string; creationDate: string }>;
+          companies: Array<{
+            companyName: string;
+            companyNumber: string;
+            creationDate: string;
+            directorName?: string | null;
+          }>;
           upstreamItemCount?: number;
         }
       | {
@@ -165,6 +250,9 @@ export function SignalDiscoveryClient() {
       if (errCode === "Missing COMPANIES_HOUSE_API_KEY") {
         return { ok: false, code: "API_KEY_MISSING", hint, details };
       }
+      if (errCode === "DISCOVERY_DATE_RANGE_TOO_LARGE") {
+        return { ok: false, code: "DATE_RANGE_TOO_LARGE", hint, details };
+      }
       const msg = !data.ok ? data.error : `Discovery failed (${res.status})`;
       return { ok: false, code: msg, hint, details };
     }
@@ -173,7 +261,7 @@ export function SignalDiscoveryClient() {
       companies: data.companies,
       upstreamItemCount: data.upstreamItemCount,
     };
-  }, []);
+  }, [signalDateFrom, signalDateTo]);
 
   const runMapping = useCallback(async () => {
     setLeads([]);
@@ -191,7 +279,9 @@ export function SignalDiscoveryClient() {
         await new Promise((r) => setTimeout(r, 520));
       }
 
-      appendDiscoveryLog("[SIGINT] Pulling Companies House filings (last 7 days)…");
+      appendDiscoveryLog(
+        `[SIGINT] Pulling Companies House filings (${signalDateFrom} → ${signalDateTo})…`,
+      );
       const sig = await fetchSignals();
       if (!sig.ok) {
         if (sig.code === "INVALID_API_KEY") {
@@ -209,6 +299,9 @@ export function SignalDiscoveryClient() {
         } else if (sig.code === "API_KEY_MISSING") {
           appendDiscoveryLog("[ERR] COMPANIES_HOUSE_API_KEY is empty — set it in .env.local");
           setDiscoveryError("COMPANIES HOUSE API KEY NOT SET");
+        } else if (sig.code === "DATE_RANGE_TOO_LARGE") {
+          appendDiscoveryLog("[ERR] Date range too large");
+          setDiscoveryError("DATE RANGE TOO LARGE");
         } else if (sig.code === "API_ROUTE_RETURNED_HTML") {
           appendDiscoveryLog("[ERR] /api/discovery returned HTML (not JSON)");
           setDiscoveryError("HTML INSTEAD OF JSON");
@@ -233,25 +326,36 @@ export function SignalDiscoveryClient() {
       if (companies.length === 0) {
         if (typeof upstream === "number" && upstream > 0) {
           setDiscoveryHint(
-            `Companies House returned ${upstream} row(s) from advanced search, but none had a usable name, number, and creation date in the 7-day window. If this persists, check the API response shape or try again later.`,
+            `Companies House returned ${upstream} row(s) from advanced search, but none had a usable name, number, and creation date in ${signalDateFrom} → ${signalDateTo}. If this persists, check the API response shape or try a different window.`,
           );
         } else {
           setDiscoveryHint(
-            "Advanced search returned no active companies for the last 7 days with the current filters. The registry may have no matches in that window, or the result set is empty.",
+            `Advanced search returned no active companies for ${signalDateFrom} → ${signalDateTo} with the current filters. Try widening the dates or check again later.`,
           );
         }
       }
 
-      const mapped: SignalLeadRow[] = companies.map((c, i) => ({
-        id: `ch-${c.companyNumber}`,
-        name: c.companyName,
-        company: c.companyNumber,
-        role: "Companies House",
-        location: c.creationDate,
-        score: String(70 + ((i * 7) % 25)),
-        status: "Registry verified",
-        sources: ["companies_house"],
-      }));
+      const mapped: SignalLeadRow[] = companies.map((c, i) => {
+        const directorName =
+          typeof c.directorName === "string" && c.directorName.trim()
+            ? c.directorName.trim()
+            : null;
+        return {
+          id: `ch-${c.companyNumber}`,
+          name: c.companyName,
+          company: c.companyNumber,
+          role: "Companies House",
+          location: c.creationDate,
+          score: String(70 + ((i * 7) % 25)),
+          status: "Verified",
+          directorName,
+          directorTrust: directorName ? "verified" : "unverified",
+          webUrl: null,
+          apolloOrgName: null,
+          webPresence: "pending",
+          sources: ["companies_house"],
+        };
+      });
 
       setLeads(mapped);
       setPhase("done");
@@ -263,7 +367,7 @@ export function SignalDiscoveryClient() {
     } finally {
       setDiscoveryLoading(false);
     }
-  }, [appendDiscoveryLog, fetchSignals]);
+  }, [appendDiscoveryLog, fetchSignals, signalDateFrom, signalDateTo]);
 
   const closeIntelPanel = useCallback(() => {
     setIntelOpen(false);
@@ -275,6 +379,114 @@ export function SignalDiscoveryClient() {
   const openIntelForLead = useCallback((row: SignalLeadRow) => {
     setIntelLead(row);
     setIntelOpen(true);
+  }, []);
+
+  const handleSynthesizeDossier = useCallback((row: SignalLeadRow) => {
+    setDossierSynthesisRowId(row.id);
+    setApolloBridgeLog((prev) =>
+      [
+        ...prev,
+        `[INTEL] Dossier synthesis staged for ${row.name} — no live enrichment pipeline wired in this build (director from CH register only).`,
+      ].slice(-40),
+    );
+    window.setTimeout(() => {
+      setDossierSynthesisRowId((current) => (current === row.id ? null : current));
+    }, 2800);
+  }, []);
+
+  const handleSearchWeb = useCallback(async (row: SignalLeadRow) => {
+    setWebSearchRowId(row.id);
+    setApolloBridgeLog((prev) =>
+      [...prev, `[APOLLO] Organization search — ${row.name}`].slice(-40),
+    );
+    try {
+      const res = await fetch("/api/discovery/apollo-website", {
+        method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ companyName: row.name }),
+      });
+      const raw = await res.text();
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        setLeads((prev) =>
+          prev.map((r) =>
+            r.id === row.id
+              ? { ...r, webPresence: "unverified", webUrl: null, apolloOrgName: null }
+              : r,
+          ),
+        );
+        setApolloBridgeLog((p) => [...p, "[APOLLO] Response was not valid JSON"].slice(-40));
+        return;
+      }
+      const d = parsed as Record<string, unknown>;
+      if (!res.ok || d.ok === false) {
+        const hint = typeof d.hint === "string" ? d.hint : undefined;
+        setLeads((prev) =>
+          prev.map((r) =>
+            r.id === row.id
+              ? { ...r, webPresence: "unverified", webUrl: null, apolloOrgName: null }
+              : r,
+          ),
+        );
+        setApolloBridgeLog((p) =>
+          [...p, hint ?? `[APOLLO] Request failed (${res.status})`].slice(-40),
+        );
+        return;
+      }
+
+      const websiteUrl = typeof d.websiteUrl === "string" && d.websiteUrl ? d.websiteUrl : null;
+      const apolloOrganizationName =
+        typeof d.apolloOrganizationName === "string" ? d.apolloOrganizationName : null;
+      const matchStatus = d.matchStatus;
+      const tierFromApollo =
+        matchStatus === "verified" || matchStatus === "likely_match" || matchStatus === "unverified"
+          ? matchStatus
+          : "unverified";
+
+      if (!websiteUrl) {
+        setLeads((prev) =>
+          prev.map((r) =>
+            r.id === row.id
+              ? {
+                  ...r,
+                  webUrl: null,
+                  apolloOrgName: apolloOrganizationName,
+                  webPresence: "not_found",
+                }
+              : r,
+          ),
+        );
+        setApolloBridgeLog((p) => [...p, "[APOLLO] Web presence: Not found"].slice(-40));
+        return;
+      }
+
+      setLeads((prev) =>
+        prev.map((r) =>
+          r.id === row.id
+            ? {
+                ...r,
+                webUrl: websiteUrl,
+                apolloOrgName: apolloOrganizationName,
+                webPresence: tierFromApollo,
+              }
+            : r,
+        ),
+      );
+      setApolloBridgeLog((p) => [...p, `[APOLLO] website_url → ${websiteUrl}`].slice(-40));
+    } catch {
+      setLeads((prev) =>
+        prev.map((r) =>
+          r.id === row.id
+            ? { ...r, webPresence: "unverified", webUrl: null, apolloOrgName: null }
+            : r,
+        ),
+      );
+      setApolloBridgeLog((p) => [...p, "[APOLLO] Network or runtime error"].slice(-40));
+    } finally {
+      setWebSearchRowId(null);
+    }
   }, []);
 
   useEffect(() => {
@@ -406,6 +618,44 @@ export function SignalDiscoveryClient() {
             </label>
           </div>
 
+          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-12">
+            <label className="flex flex-col gap-2 lg:col-span-4">
+              <span className="text-xs font-semibold uppercase tracking-wider text-violet-300/85">
+                Start date
+              </span>
+              <input
+                type="date"
+                value={signalDateFrom}
+                max={signalDateTo}
+                disabled={phase === "sovereign" || discoveryLoading}
+                onChange={(e) => setSignalDateFrom(e.target.value)}
+                className="w-full min-w-0 rounded-xl border border-indigo-500/25 bg-black/50 px-4 py-3 text-sm text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] outline-none [color-scheme:dark] focus:border-violet-500/45 focus:shadow-[0_0_0_1px_rgba(139,92,246,0.35),0_0_28px_-10px_rgba(99,102,241,0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </label>
+            <label className="flex flex-col gap-2 lg:col-span-4">
+              <span className="text-xs font-semibold uppercase tracking-wider text-violet-300/85">
+                End date
+              </span>
+              <input
+                type="date"
+                value={signalDateTo}
+                min={signalDateFrom}
+                max={todayInputMax}
+                disabled={phase === "sovereign" || discoveryLoading}
+                onChange={(e) => setSignalDateTo(e.target.value)}
+                className="w-full min-w-0 rounded-xl border border-indigo-500/25 bg-black/50 px-4 py-3 text-sm text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] outline-none [color-scheme:dark] focus:border-violet-500/45 focus:shadow-[0_0_0_1px_rgba(139,92,246,0.35),0_0_28px_-10px_rgba(99,102,241,0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </label>
+            <p className="self-end text-xs leading-relaxed text-zinc-500 lg:col-span-4">
+              UK incorporation window sent to Companies House{" "}
+              <span className="font-mono text-zinc-400">incorporated_from</span> /{" "}
+              <span className="font-mono text-zinc-400">incorporated_to</span>. Omitting{" "}
+              <span className="font-mono text-zinc-400">from</span> or{" "}
+              <span className="font-mono text-zinc-400">to</span> on the API falls back to the last 7
+              days.
+            </p>
+          </div>
+
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
@@ -468,7 +718,10 @@ export function SignalDiscoveryClient() {
                 Mapped accounts
               </h2>
               <p className="mt-1 text-sm text-zinc-500">
-                Live UK registry results — Companies House (last 7 days).
+                Live UK registry — Companies House ·{" "}
+                <span className="font-mono text-zinc-400">
+                  {signalDateFrom} → {signalDateTo}
+                </span>
               </p>
             </div>
             <span
@@ -500,6 +753,7 @@ export function SignalDiscoveryClient() {
                   {discoveryHint &&
                   discoveryError !== "API KEY STILL PLACEHOLDER" &&
                   discoveryError !== "COMPANIES HOUSE API KEY NOT SET" &&
+                  discoveryError !== "DATE RANGE TOO LARGE" &&
                   discoveryError !== "HTML INSTEAD OF JSON" &&
                   discoveryError !== "INVALID JSON FROM /api/discovery" ? (
                     <span className="mt-3 block text-left text-xs leading-relaxed text-violet-200/80">
@@ -548,6 +802,18 @@ export function SignalDiscoveryClient() {
                         </a>{" "}
                         — you want <span className="font-mono text-zinc-300">ok: true</span>.
                       </li>
+                    </ul>
+                  ) : null}
+                  {discoveryError === "DATE RANGE TOO LARGE" ? (
+                    <ul className="mt-4 list-disc pl-5 text-left text-xs leading-relaxed text-zinc-400">
+                      <li>
+                        Narrow the <span className="font-mono text-zinc-300">Start date</span> /{" "}
+                        <span className="font-mono text-zinc-300">End date</span> window (max ~2 years)
+                        and run <span className="font-mono text-zinc-300">Map Market</span> again.
+                      </li>
+                      {discoveryHint ? (
+                        <li className="text-violet-200/85">{discoveryHint}</li>
+                      ) : null}
                     </ul>
                   ) : null}
                   {discoveryError === "HTML INSTEAD OF JSON" ? (
@@ -632,12 +898,12 @@ export function SignalDiscoveryClient() {
                     The UK bridge returned successfully, but there were no companies to map (empty
                     result or all rows filtered out). Open{" "}
                     <a
-                      href="/api/discovery?size=20"
+                      href={`/api/discovery?${discoveryDebugQuery}`}
                       className="font-mono text-violet-300 underline decoration-violet-500/40 underline-offset-2 hover:text-violet-200"
                       target="_blank"
                       rel="noreferrer"
                     >
-                      /api/discovery?size=20
+                      /api/discovery?{discoveryDebugQuery}
                     </a>{" "}
                     to inspect raw JSON (<span className="font-mono text-zinc-400">companies</span>,{" "}
                     <span className="font-mono text-zinc-400">upstreamItemCount</span>).
@@ -651,78 +917,199 @@ export function SignalDiscoveryClient() {
               ) : (
                 <>
                   Run <span className="text-zinc-400">Map Market</span> to execute the sovereign
-                  sequence and populate this table with UK registry companies created in the last 7
-                  days.
+                  sequence and populate this table with UK registry companies incorporated between{" "}
+                  <span className="font-mono text-zinc-400">
+                    {signalDateFrom} and {signalDateTo}
+                  </span>
+                  .
                 </>
               )}
             </p>
           ) : (
             <div className="overflow-hidden rounded-2xl border border-indigo-500/20 bg-black/60 shadow-[0_0_0_1px_rgba(99,102,241,0.08)]">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[880px] text-left text-sm">
+                <table className="w-full min-w-[1480px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-indigo-500/15 bg-zinc-950/90">
-                      <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                      <th className="whitespace-nowrap px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 sm:px-5">
                         Name
                       </th>
-                      <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                      <th className="whitespace-nowrap px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 sm:px-5">
                         Company
                       </th>
-                      <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                      <th className="whitespace-nowrap px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 sm:px-5">
+                        Director (CH)
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 sm:px-5">
+                        Email
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 sm:px-5">
                         Source
                       </th>
-                      <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                      <th className="whitespace-nowrap px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 sm:px-5">
                         Created
                       </th>
-                      <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                      <th className="whitespace-nowrap px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 sm:px-5">
                         Signal score
                       </th>
-                      <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                        Status
+                      <th className="whitespace-nowrap px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 sm:px-5">
+                        Registry
                       </th>
-                      <th className="whitespace-nowrap px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                      <th className="whitespace-nowrap px-3 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 sm:px-4">
+                        Director Intel
+                      </th>
+                      <th className="whitespace-nowrap px-3 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 sm:px-4">
+                        Website
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-zinc-500 sm:px-5">
                         Intel
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-indigo-500/10">
-                    {leads.map((row, rowIndex) => (
-                      <tr
-                        key={row.id}
-                        className={`${rowHoverClass} lf-l3-pipeline-row`}
-                        style={{ animationDelay: `${rowIndex * 72}ms` }}
-                      >
-                        <td className="whitespace-nowrap px-5 py-4 font-medium text-zinc-100">{row.name}</td>
-                        <td className="max-w-[180px] truncate px-5 py-4 text-zinc-400" title={row.company}>
-                          {row.company}
-                        </td>
-                        <td className="max-w-[160px] truncate px-5 py-4 text-zinc-400" title={row.role}>
-                          {row.role}
-                        </td>
-                        <td className="whitespace-nowrap px-5 py-4 text-zinc-500">{row.location}</td>
-                        <td className="whitespace-nowrap px-5 py-4 tabular-nums">
-                          <span className="text-violet-300/95">{row.score}</span>
-                          <span className="text-zinc-600"> /100</span>
-                        </td>
-                        <td className="whitespace-nowrap px-5 py-4">
-                          <span className="inline-flex rounded-full border border-emerald-500/35 bg-emerald-500/[0.08] px-2.5 py-0.5 text-xs font-medium text-emerald-300/95">
-                            {row.status}
-                          </span>
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => openIntelForLead(row)}
-                            className="inline-flex items-center justify-center rounded-lg border border-violet-500/40 bg-violet-500/[0.12] px-3 py-2 text-xs font-semibold text-violet-100 shadow-[0_0_20px_-8px_rgba(139,92,246,0.45)] transition hover:border-violet-400/55 hover:bg-violet-500/20"
-                          >
-                            Access Intel
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {leads.map((row, rowIndex) => {
+                      const synthesizing = dossierSynthesisRowId === row.id;
+                      const searchingWeb = webSearchRowId === row.id;
+                      const busyIntel = dossierSynthesisRowId !== null || webSearchRowId !== null;
+                      const webTier: TrustTier | null =
+                        row.webPresence === "verified" ||
+                        row.webPresence === "likely_match" ||
+                        row.webPresence === "unverified"
+                          ? row.webPresence
+                          : null;
+                      return (
+                        <tr
+                          key={row.id}
+                          className={`${rowHoverClass} lf-l3-pipeline-row`}
+                          style={{ animationDelay: `${rowIndex * 72}ms` }}
+                        >
+                          <td className="max-w-[200px] truncate px-4 py-4 font-medium text-zinc-100 sm:px-5">
+                            {row.name}
+                          </td>
+                          <td className="max-w-[120px] truncate px-4 py-4 font-mono text-xs text-zinc-400 sm:max-w-[140px] sm:px-5" title={row.company}>
+                            {row.company}
+                          </td>
+                          <td className="max-w-[200px] px-4 py-4 sm:px-5">
+                            <div className="flex flex-col gap-1.5">
+                              <span className="text-sm text-zinc-200" title={row.directorName ?? undefined}>
+                                {row.directorName ?? "—"}
+                              </span>
+                              <TrustBadge tier={row.directorTrust} />
+                            </div>
+                          </td>
+                          <td className="max-w-[160px] px-4 py-4 sm:px-5">
+                            <span className="inline-flex rounded-full border border-amber-500/30 bg-amber-500/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-200/90">
+                              Verification pending
+                            </span>
+                            <span className="mt-1 block text-[10px] leading-snug text-zinc-600">
+                              Prospeo bridge not connected
+                            </span>
+                          </td>
+                          <td className="max-w-[120px] truncate px-4 py-4 text-zinc-400 sm:px-5" title={row.role}>
+                            {row.role}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-4 text-zinc-500 sm:px-5">{row.location}</td>
+                          <td className="whitespace-nowrap px-4 py-4 tabular-nums sm:px-5">
+                            <span className="text-violet-300/95">{row.score}</span>
+                            <span className="text-zinc-600"> /100</span>
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-4 sm:px-5">
+                            <TrustBadge tier="verified" />
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-3 sm:px-4">
+                            <button
+                              type="button"
+                              disabled={busyIntel}
+                              aria-busy={synthesizing}
+                              onClick={() => handleSynthesizeDossier(row)}
+                              className="inline-flex min-h-[36px] min-w-[8.5rem] max-w-full items-center justify-center gap-2 rounded-lg border border-indigo-500/40 bg-indigo-500/[0.1] px-2.5 py-2 text-[11px] font-semibold text-indigo-100 shadow-[0_0_18px_-8px_rgba(99,102,241,0.45)] transition hover:border-indigo-400/55 hover:bg-indigo-500/18 disabled:cursor-not-allowed disabled:opacity-55 sm:min-w-[9.5rem] sm:px-3 sm:text-xs"
+                            >
+                              {synthesizing ? (
+                                <Loader2 className="size-3.5 shrink-0 animate-spin text-violet-300" aria-hidden />
+                              ) : null}
+                              <span>{synthesizing ? "Synthesizing…" : "Synthesize Dossier"}</span>
+                            </button>
+                          </td>
+                          <td className="min-w-[200px] max-w-[260px] px-3 py-3 sm:px-4">
+                            <div className="flex flex-col gap-2">
+                              <button
+                                type="button"
+                                disabled={busyIntel}
+                                aria-busy={searchingWeb}
+                                onClick={() => void handleSearchWeb(row)}
+                                className="inline-flex min-h-[34px] w-full max-w-[11rem] items-center justify-center gap-2 rounded-lg border border-violet-500/35 bg-violet-500/[0.1] px-2.5 py-1.5 text-[11px] font-semibold text-violet-100 transition hover:border-violet-400/50 hover:bg-violet-500/16 disabled:cursor-not-allowed disabled:opacity-55 sm:text-xs"
+                              >
+                                {searchingWeb ? (
+                                  <Loader2 className="size-3.5 shrink-0 animate-spin text-violet-300" aria-hidden />
+                                ) : null}
+                                {searchingWeb ? "Searching…" : "Search Web"}
+                              </button>
+                              {row.webPresence === "pending" ? (
+                                <p className="text-[10px] leading-snug text-zinc-600">
+                                  Apollo lookup — no guessed URLs.
+                                </p>
+                              ) : row.webPresence === "not_found" ? (
+                                <div className="flex flex-col gap-1">
+                                  <p className="text-xs font-medium text-zinc-400">Web presence: Not found</p>
+                                  <TrustBadge tier="unverified" />
+                                </div>
+                              ) : row.webUrl ? (
+                                <div className="flex flex-col gap-1.5">
+                                  <a
+                                    href={row.webUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="break-all font-mono text-[11px] text-violet-300/95 underline decoration-violet-500/35 underline-offset-2 hover:text-violet-200"
+                                  >
+                                    {row.webUrl}
+                                  </a>
+                                  {webTier ? <TrustBadge tier={webTier} /> : null}
+                                  {row.apolloOrgName ? (
+                                    <p className="text-[10px] text-zinc-600" title="Apollo organization label">
+                                      Apollo: {row.apolloOrgName}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <div className="flex flex-col gap-1">
+                                  <p className="text-xs text-zinc-500">No URL returned</p>
+                                  <TrustBadge tier="unverified" />
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-3 text-right sm:px-4">
+                            <button
+                              type="button"
+                              onClick={() => openIntelForLead(row)}
+                              className="inline-flex items-center justify-center rounded-lg border border-violet-500/40 bg-violet-500/[0.12] px-3 py-2 text-xs font-semibold text-violet-100 shadow-[0_0_20px_-8px_rgba(139,92,246,0.45)] transition hover:border-violet-400/55 hover:bg-violet-500/20"
+                            >
+                              Access Intel
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
+              {apolloBridgeLog.length > 0 ? (
+                <div
+                  className="border-t border-indigo-500/20 bg-black/55 px-4 py-4 sm:px-5"
+                  aria-live="polite"
+                >
+                  <p className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-violet-400/85">
+                    Intel layer · Apollo bridge
+                  </p>
+                  <div className="mt-3 max-h-40 overflow-y-auto font-mono text-[11px] leading-relaxed text-emerald-400/95 sm:text-xs">
+                    {apolloBridgeLog.map((line, i) => (
+                      <p key={`${i}-${line}`} className="mb-1.5 last:mb-0">
+                        <span className="text-emerald-600/80">➜</span> {line}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           )}
         </section>
@@ -752,8 +1139,19 @@ export function SignalDiscoveryClient() {
                 <h2 id="intel-dossier-title" className="mt-1 truncate text-lg font-semibold text-white">
                   {intelLead.name}
                 </h2>
-                <p className="truncate text-sm text-zinc-500">
+                <p className="mt-1 truncate text-sm text-zinc-500">
                   {intelLead.role} · {intelLead.company}
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+                  <span className="font-semibold text-zinc-300">Director (CH register):</span>{" "}
+                  {intelLead.directorName ?? (
+                    <span className="text-zinc-500">Not returned — officers fetch empty or blocked</span>
+                  )}
+                </p>
+                <p className="mt-1.5 text-xs text-zinc-500">
+                  Email:{" "}
+                  <span className="font-medium text-amber-200/85">Verification pending</span>
+                  <span className="text-zinc-600"> — Prospeo bridge not connected</span>
                 </p>
               </div>
               <div className="flex items-center gap-3">

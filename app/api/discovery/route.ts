@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { fetchPrimaryDirectorName } from "@/lib/companies-house-officers";
 import {
   COMPANIES_HOUSE_USER_AGENT,
   companiesHouseBasicAuthHeader,
@@ -20,6 +21,18 @@ type CompaniesHouseAdvancedSearchResponse = {
 function isoDateOnly(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Returns the string if it is a valid calendar date in YYYY-MM-DD form. */
+function parseIsoDateParam(value: string | null): string | null {
+  if (value == null || !ISO_DATE_RE.test(value)) return null;
+  const ms = Date.parse(`${value}T12:00:00.000Z`);
+  if (!Number.isFinite(ms)) return null;
+  return value;
+}
+
+const MAX_RANGE_DAYS = 731;
 
 export async function GET(request: Request) {
   const apiKey = readCompaniesHouseApiKeyFromEnv();
@@ -54,17 +67,67 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const size = Math.min(Math.max(Number(url.searchParams.get("size") ?? 20), 1), 100);
 
-  const now = new Date();
-  const since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const incorporated_from = isoDateOnly(since);
-  const incorporated_to = isoDateOnly(now);
+  const todayUtc = isoDateOnly(new Date());
+  const fromParam = parseIsoDateParam(url.searchParams.get("from"));
+  const toParam = parseIsoDateParam(url.searchParams.get("to"));
+
+  let incorporated_from: string;
+  let incorporated_to: string;
+  let usedCustomRange: boolean;
+
+  if (fromParam && toParam) {
+    let from = fromParam;
+    let to = toParam;
+    if (from > to) {
+      const t = from;
+      from = to;
+      to = t;
+    }
+    if (to > todayUtc) {
+      to = todayUtc;
+    }
+    if (from > to) {
+      from = to;
+    }
+    const startMs = Date.parse(`${from}T00:00:00.000Z`);
+    const endMs = Date.parse(`${to}T00:00:00.000Z`);
+    const spanDays = Math.floor((endMs - startMs) / 86_400_000) + 1;
+    if (spanDays > MAX_RANGE_DAYS) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "DISCOVERY_DATE_RANGE_TOO_LARGE",
+          hint: `Choose a window of at most ${MAX_RANGE_DAYS} days.`,
+        },
+        { status: 400 },
+      );
+    }
+    incorporated_from = from;
+    incorporated_to = to;
+    usedCustomRange = true;
+  } else {
+    const now = new Date();
+    const since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    incorporated_from = isoDateOnly(since);
+    incorporated_to = isoDateOnly(now);
+    if (incorporated_to > todayUtc) {
+      incorporated_to = todayUtc;
+    }
+    usedCustomRange = false;
+  }
+
+  const windowStartMs = Date.parse(`${incorporated_from}T00:00:00.000Z`);
+  const windowEndMs = Date.parse(`${incorporated_to}T00:00:00.000Z`);
+  const windowDaysInclusive = Math.max(
+    1,
+    Math.floor((windowEndMs - windowStartMs) / 86_400_000) + 1,
+  );
 
   const upstream = new URL(
     "https://api.company-information.service.gov.uk/advanced-search/companies",
   );
 
-  // Keep the call deterministic and cheap for demo; we filter to the last 7 days server-side
-  // and again client-side as a safety net.
+  // Query CH for the incorporation window; client-side filter matches the same calendar bounds.
   upstream.searchParams.set("incorporated_from", incorporated_from);
   upstream.searchParams.set("incorporated_to", incorporated_to);
   upstream.searchParams.set("company_status", "active");
@@ -129,11 +192,10 @@ export async function GET(request: Request) {
 
   const data = (await res.json()) as CompaniesHouseAdvancedSearchResponse;
   const rawItems = data.items ?? [];
-  /** Match calendar window from CH query — date-only fields vs `since.getTime()` would drop the first day. */
-  const windowStartMs = Date.parse(`${incorporated_from}T00:00:00.000Z`);
-  const windowEndMs = Date.parse(`${incorporated_to}T23:59:59.999Z`);
+  const filterStartMs = Date.parse(`${incorporated_from}T00:00:00.000Z`);
+  const filterEndMs = Date.parse(`${incorporated_to}T23:59:59.999Z`);
 
-  const companies = rawItems
+  const baseCompanies = rawItems
     .map((item) => ({
       companyName: item.company_name ?? "",
       companyNumber: item.company_number ?? "",
@@ -142,12 +204,30 @@ export async function GET(request: Request) {
     .filter((c) => c.companyName && c.companyNumber && c.creationDate)
     .filter((c) => {
       const t = Date.parse(c.creationDate);
-      return Number.isFinite(t) && t >= windowStartMs && t <= windowEndMs;
+      return Number.isFinite(t) && t >= filterStartMs && t <= filterEndMs;
     });
+
+  const companies: Array<{
+    companyName: string;
+    companyNumber: string;
+    creationDate: string;
+    directorName: string | null;
+  }> = [];
+
+  for (const c of baseCompanies) {
+    const directorName = await fetchPrimaryDirectorName(
+      c.companyNumber,
+      authHeader,
+      COMPANIES_HOUSE_USER_AGENT,
+    );
+    companies.push({ ...c, directorName });
+    await new Promise((r) => setTimeout(r, 110));
+  }
 
   return NextResponse.json({
     ok: true,
-    windowDays: 7,
+    windowDays: windowDaysInclusive,
+    dateRangeCustom: usedCustomRange,
     incorporatedFrom: incorporated_from,
     incorporatedTo: incorporated_to,
     /** Raw hit count before date-window filter (helps debug empty tables). */
