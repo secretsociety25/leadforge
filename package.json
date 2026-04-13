@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true});\"",
+    "dev:clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true});\" && next dev",
     "dev:3006": "next dev -p 3006",
     "dev:3333": "next dev -p 3333",
     "build": "next build",

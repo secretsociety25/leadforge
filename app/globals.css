@@ -1,4 +1,10 @@
+/* Tailwind CSS v4: @import "tailwindcss" loads base + components + utilities in one pass.
+   (Tailwind v3 used three lines: @tailwind base; @tailwind components; @tailwind utilities;) */
 @import "tailwindcss";
+
+/* Explicit scan paths so utilities used under app/ and components/ always generate (fixes “unstyled” UI after cache drift). */
+@source "./**/*.{js,ts,jsx,tsx,mdx}";
+@source "../components/**/*.{js,ts,jsx,tsx,mdx}";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -9,6 +15,38 @@
 
 html {
   font-family: var(--font-sans);
+}
+
+/* L3 terminal — mission-complete reveal (slow tactical pulse) */
+@keyframes lf-l3-mission-pulse {
+  0%,
+  100% {
+    opacity: 0.88;
+    filter: brightness(1);
+    text-shadow:
+      0 0 18px rgba(52, 211, 153, 0.45),
+      0 0 42px rgba(34, 197, 94, 0.2);
+  }
+  50% {
+    opacity: 1;
+    filter: brightness(1.12);
+    text-shadow:
+      0 0 28px rgba(52, 211, 153, 0.75),
+      0 0 56px rgba(34, 197, 94, 0.35),
+      0 0 80px rgba(16, 185, 129, 0.12);
+  }
+}
+
+.lf-l3-mission-title {
+  animation: lf-l3-mission-pulse 3.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-l3-mission-title {
+    animation: none;
+    opacity: 1;
+    text-shadow: 0 0 20px rgba(52, 211, 153, 0.5);
+  }
 }
 
 /* LeadForge landing — kinetic hero + grid (CSS-only, Lighthouse-friendly) */

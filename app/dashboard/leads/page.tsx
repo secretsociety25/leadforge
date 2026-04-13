@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { LeadsFactoryClient } from "@/components/dashboard/leads-factory-client";
+import type { Tables } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -8,9 +9,25 @@ export const metadata: Metadata = {
   description: "Generate and export personalized cold emails.",
 };
 
-export default async function LeadsPage() {
-  const supabase = await createClient();
-  const { data: leads } = await supabase.from("leads").select("*").order("created_at", { ascending: false });
+function queryTimeout(ms: number) {
+  return new Promise<never>((_, rej) => {
+    setTimeout(() => rej(new Error("query timeout")), ms);
+  });
+}
 
-  return <LeadsFactoryClient initialLeads={leads ?? []} />;
+export default async function LeadsPage() {
+  let leads: Tables<"leads">[] = [];
+
+  try {
+    const supabase = await createClient();
+    const { data } = await Promise.race([
+      supabase.from("leads").select("*").order("created_at", { ascending: false }),
+      queryTimeout(5000),
+    ]);
+    leads = data ?? [];
+  } catch {
+    leads = [];
+  }
+
+  return <LeadsFactoryClient initialLeads={leads} />;
 }
