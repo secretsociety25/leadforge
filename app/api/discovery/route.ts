@@ -129,7 +129,9 @@ export async function GET(request: Request) {
 
   const data = (await res.json()) as CompaniesHouseAdvancedSearchResponse;
   const rawItems = data.items ?? [];
-  const cutoff = since.getTime();
+  /** Match calendar window from CH query — date-only fields vs `since.getTime()` would drop the first day. */
+  const windowStartMs = Date.parse(`${incorporated_from}T00:00:00.000Z`);
+  const windowEndMs = Date.parse(`${incorporated_to}T23:59:59.999Z`);
 
   const companies = rawItems
     .map((item) => ({
@@ -140,7 +142,7 @@ export async function GET(request: Request) {
     .filter((c) => c.companyName && c.companyNumber && c.creationDate)
     .filter((c) => {
       const t = Date.parse(c.creationDate);
-      return Number.isFinite(t) && t >= cutoff;
+      return Number.isFinite(t) && t >= windowStartMs && t <= windowEndMs;
     });
 
   return NextResponse.json({
@@ -148,6 +150,8 @@ export async function GET(request: Request) {
     windowDays: 7,
     incorporatedFrom: incorporated_from,
     incorporatedTo: incorporated_to,
+    /** Raw hit count before date-window filter (helps debug empty tables). */
+    upstreamItemCount: rawItems.length,
     companies,
   });
 }

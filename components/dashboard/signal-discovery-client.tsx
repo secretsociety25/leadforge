@@ -103,6 +103,7 @@ export function SignalDiscoveryClient() {
     | {
         ok: true;
         companies: Array<{ companyName: string; companyNumber: string; creationDate: string }>;
+        upstreamItemCount?: number;
       }
     | { ok: false; code: string; hint?: string; details?: string }
   > => {
@@ -139,6 +140,7 @@ export function SignalDiscoveryClient() {
       | {
           ok: true;
           companies: Array<{ companyName: string; companyNumber: string; creationDate: string }>;
+          upstreamItemCount?: number;
         }
       | {
           ok: false;
@@ -166,7 +168,11 @@ export function SignalDiscoveryClient() {
       const msg = !data.ok ? data.error : `Discovery failed (${res.status})`;
       return { ok: false, code: msg, hint, details };
     }
-    return { ok: true, companies: data.companies };
+    return {
+      ok: true,
+      companies: data.companies,
+      upstreamItemCount: data.upstreamItemCount,
+    };
   }, []);
 
   const runMapping = useCallback(async () => {
@@ -222,7 +228,19 @@ export function SignalDiscoveryClient() {
       }
 
       const companies = sig.companies;
+      const upstream = sig.upstreamItemCount;
       appendDiscoveryLog(`[SYNC] ${companies.length} company record(s) resolved · mapping table…`);
+      if (companies.length === 0) {
+        if (typeof upstream === "number" && upstream > 0) {
+          setDiscoveryHint(
+            `Companies House returned ${upstream} row(s) from advanced search, but none had a usable name, number, and creation date in the 7-day window. If this persists, check the API response shape or try again later.`,
+          );
+        } else {
+          setDiscoveryHint(
+            "Advanced search returned no active companies for the last 7 days with the current filters. The registry may have no matches in that window, or the result set is empty.",
+          );
+        }
+      }
 
       const mapped: SignalLeadRow[] = companies.map((c, i) => ({
         id: `ch-${c.companyNumber}`,
@@ -457,10 +475,16 @@ export function SignalDiscoveryClient() {
               className={`rounded-md border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${
                 leads.length > 0
                   ? "border-emerald-500/25 bg-emerald-500/[0.08] text-emerald-300/90"
-                  : "border-zinc-600/40 bg-zinc-900/60 text-zinc-500"
+                  : phase === "done" && !discoveryError
+                    ? "border-amber-500/25 bg-amber-500/[0.08] text-amber-200/90"
+                    : "border-zinc-600/40 bg-zinc-900/60 text-zinc-500"
               }`}
             >
-              {leads.length > 0 ? "Populated" : "Awaiting mapping"}
+              {leads.length > 0
+                ? "Populated"
+                : phase === "done" && !discoveryError
+                  ? "No matches"
+                  : "Awaiting mapping"}
             </span>
           </div>
 
@@ -596,6 +620,31 @@ export function SignalDiscoveryClient() {
                         <span className="font-mono text-zinc-300">npm run dev</span>.
                       </li>
                     </ul>
+                  ) : null}
+                </>
+              ) : phase === "done" ? (
+                <>
+                  <span className="font-semibold text-amber-200/90">
+                    Registry call succeeded — no rows to show.
+                  </span>
+                  <span className="mt-2 block text-xs text-zinc-500">
+                    The UK bridge returned successfully, but there were no companies to map (empty
+                    result or all rows filtered out). Open{" "}
+                    <a
+                      href="/api/discovery?size=20"
+                      className="font-mono text-violet-300 underline decoration-violet-500/40 underline-offset-2 hover:text-violet-200"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      /api/discovery?size=20
+                    </a>{" "}
+                    to inspect raw JSON (<span className="font-mono text-zinc-400">companies</span>,{" "}
+                    <span className="font-mono text-zinc-400">upstreamItemCount</span>).
+                  </span>
+                  {discoveryHint ? (
+                    <span className="mt-3 block text-left text-xs leading-relaxed text-violet-200/80">
+                      {discoveryHint}
+                    </span>
                   ) : null}
                 </>
               ) : (
