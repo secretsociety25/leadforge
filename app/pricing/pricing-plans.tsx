@@ -456,26 +456,35 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
                 <a
                   href={ENTERPRISE_INQUIRY_HREF}
                   style={{
-                    marginTop: "0.5rem",
-                    padding: "0.75rem 1rem",
-                    borderRadius: 11,
-                    border: "1px solid rgba(250, 250, 250, 0.22)",
-                    background: "linear-gradient(145deg, rgba(24, 24, 27, 0.95) 0%, rgba(39, 39, 42, 0.85) 100%)",
-                    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                    marginTop: "0.35rem",
+                    padding: "1rem 1.25rem 1.1rem",
+                    borderRadius: 14,
+                    border: "1px solid rgba(196, 181, 253, 0.45)",
+                    background:
+                      "linear-gradient(155deg, rgba(91, 33, 182, 0.95) 0%, rgba(67, 56, 202, 0.88) 42%, rgba(30, 27, 75, 0.95) 100%)",
+                    boxShadow: [
+                      "0 0 0 1px rgba(129, 140, 248, 0.35)",
+                      "0 8px 40px -6px rgba(99, 102, 241, 0.65)",
+                      "0 0 80px -20px rgba(167, 139, 250, 0.45)",
+                      "inset 0 1px 0 rgba(255,255,255,0.14)",
+                    ].join(", "),
                     color: "#fafafa",
-                    fontWeight: 600,
+                    fontWeight: 700,
                     cursor: "pointer",
-                    fontSize: "0.9rem",
-                    minHeight: 44,
+                    fontSize: "1.05rem",
+                    letterSpacing: "0.02em",
+                    minHeight: 56,
+                    width: "100%",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "0.5rem",
+                    gap: "0.6rem",
                     textAlign: "center",
                     textDecoration: "none",
+                    transition: "filter 0.15s ease, transform 0.15s ease",
                   }}
                 >
-                  <span>{label}</span>
+                  <span style={{ textShadow: "0 0 24px rgba(199, 210, 254, 0.35)" }}>{label}</span>
                 </a>
               ) : (
                 <button

@@ -43,7 +43,7 @@ export default async function PricingPage({
         fontFamily:
           "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
         background:
-          "radial-gradient(100% 70% at 50% -20%, rgba(120, 80, 200, 0.2), transparent 50%), #09090b",
+          "radial-gradient(120% 85% at 50% -18%, rgba(99, 102, 241, 0.22), transparent 58%), radial-gradient(95% 65% at 100% 0%, rgba(139, 92, 246, 0.14), transparent 52%), #000000",
         color: "#fafafa",
         padding: "2rem 1.25rem 3rem",
       }}

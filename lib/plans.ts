@@ -153,7 +153,7 @@ export const PAID_TIER_DISPLAY: Record<
     description:
       "Fast qualification and sovereign positioning — enough runway to test the engine without overexposing process.",
     leadVolumeLabel: "1,000 High-Signal Leads / mo.",
-    highlights: ["Standard L3 Neural Mapping", "Classified Dossier access"],
+    highlights: ["Internal Lead Sourcing", "Standard SMTP Bridge"],
   },
   pro: {
     name: "Pro (£1,250) · The Infiltrator",
@@ -161,9 +161,9 @@ export const PAID_TIER_DISPLAY: Record<
       "Serious outbound cadence — deeper synthesis, faster queue, and multi-channel coherence when inboxes get noisy.",
     leadVolumeLabel: "3,500 High-Signal Leads / mo.",
     highlights: [
-      "Deep Psychographic Synthesis",
-      "Priority L3 Queue access",
-      "Multi-Channel Signal Resolution",
+      "3,500 Signals",
+      "2 Managed Isolation Domains",
+      "Warming Included",
     ],
   },
   enterprise: {
@@ -172,9 +172,9 @@ export const PAID_TIER_DISPLAY: Record<
       "Board-grade throughput — bespoke neural layers, analyst-led execution, and integrations that match how your firm actually runs revenue.",
     leadVolumeLabel: "10,000+ High-Signal Leads / mo.",
     highlights: [
-      "Custom Neural Layer Training (Brand Voice Alignment)",
-      "Dedicated Signal Analyst (Done-For-You Management)",
-      "Bespoke CRM Integrations",
+      "10,000+ Signals",
+      "Unlimited Managed Nodes",
+      "Custom Neural Layer Training",
     ],
   },
 };
