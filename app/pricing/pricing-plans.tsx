@@ -5,6 +5,7 @@ import { useCallback, useState } from "react";
 import { createZiinaPaymentAction } from "@/app/actions/billing";
 import type { UserTier } from "@/lib/database.types";
 import {
+  AED_MONTHLY_MAJOR,
   ANNUAL_MONTHS_CHARGED,
   CURRENCY_TAB,
   formatTierMoney,
@@ -15,6 +16,9 @@ import {
   type PaidTier,
   type SupportedCurrency,
 } from "@/lib/plans";
+
+const ENTERPRISE_INQUIRY_HREF =
+  "mailto:hello@mtdfix.co.uk?subject=LeadForge%20Enterprise%20%E2%80%94%20Custom%20Intelligence";
 
 const TIERS = PAID_TIERS;
 
@@ -392,17 +396,30 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
           const busy = loadingTier === tier;
           const isPopular = tier === "pro";
           const label =
-            busy && subscribePhase === "creating"
-              ? "Preparing checkout…"
-              : busy && subscribePhase === "redirecting"
-                ? "Redirecting to Ziina…"
-                : "Subscribe";
+            tier === "enterprise"
+              ? "Inquire for Custom Intelligence"
+              : busy && subscribePhase === "creating"
+                ? "Preparing checkout…"
+                : busy && subscribePhase === "redirecting"
+                  ? "Redirecting to Ziina…"
+                  : "Subscribe";
           const localized = formatTierMoney(tier, isAnnual, currency);
           const usd = PAID_TIER_USD_MONTHLY[tier];
           const usdAnnualTotal = usd * ANNUAL_MONTHS_CHARGED;
           const usdLabel = isAnnual
             ? `$${usdAnnualTotal.toLocaleString("en-US")}/year USD list`
             : `$${usd}/month USD list`;
+          const aedMonthly = AED_MONTHLY_MAJOR[tier];
+          const aedAnnualMajor = aedMonthly * ANNUAL_MONTHS_CHARGED;
+          const aedListCaption =
+            tier === "enterprise"
+              ? isAnnual
+                ? `From ${aedAnnualMajor.toLocaleString("en-US")}+ AED / year list`
+                : "From 12,000+ AED / month list"
+              : isAnnual
+                ? `${aedAnnualMajor.toLocaleString("en-US")} AED / year list`
+                : `${aedMonthly.toLocaleString("en-US")} AED / month list`;
+          const listCaption = currency === "AED" ? aedListCaption : usdLabel;
 
           return (
             <article
@@ -455,7 +472,7 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
-                  {usdLabel}
+                  {listCaption}
                 </p>
                 <p
                   style={{
@@ -502,78 +519,105 @@ export function PricingPlans({ checkout }: { checkout: CheckoutBanner }) {
                   </li>
                 ))}
               </ul>
-              <button
-                type="button"
-                disabled={loadingTier !== null}
-                aria-busy={busy}
-                onClick={() => onSubscribe(tier)}
-                style={{
-                  marginTop: "0.5rem",
-                  padding: "0.75rem 1rem",
-                  borderRadius: 11,
-                  border: isPopular ? "1px solid rgba(196, 181, 253, 0.35)" : "none",
-                  background: busy
-                    ? "rgba(255,255,255,0.12)"
-                    : isPopular
-                      ? "linear-gradient(145deg, #8b5cf6 0%, #6d28d9 45%, #5b21b6 100%)"
-                      : "linear-gradient(135deg, #7c3aed, #5b21b6)",
-                  boxShadow: busy
-                    ? "none"
-                    : isPopular
-                      ? "0 4px 20px rgba(124, 58, 237, 0.35), inset 0 1px 0 rgba(255,255,255,0.12)"
-                      : "0 4px 16px rgba(91, 33, 182, 0.25)",
-                  color: "#fff",
-                  fontWeight: 600,
-                  cursor: busy ? "wait" : "pointer",
-                  fontSize: "0.9rem",
-                  minHeight: 44,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.5rem",
-                }}
-              >
-                {busy ? (
-                  <svg
-                    width={16}
-                    height={16}
-                    viewBox="0 0 24 24"
-                    aria-hidden
-                    style={{ flexShrink: 0 }}
-                  >
-                    <title>Loading</title>
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      fill="none"
-                      stroke="rgba(255,255,255,0.2)"
-                      strokeWidth="3"
-                    />
-                    <g>
-                      <animateTransform
-                        attributeName="transform"
-                        type="rotate"
-                        from="0 12 12"
-                        to="360 12 12"
-                        dur="0.75s"
-                        repeatCount="indefinite"
-                      />
+              {tier === "enterprise" ? (
+                <a
+                  href={ENTERPRISE_INQUIRY_HREF}
+                  style={{
+                    marginTop: "0.5rem",
+                    padding: "0.75rem 1rem",
+                    borderRadius: 11,
+                    border: "1px solid rgba(250, 250, 250, 0.22)",
+                    background: "linear-gradient(145deg, rgba(24, 24, 27, 0.95) 0%, rgba(39, 39, 42, 0.85) 100%)",
+                    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                    color: "#fafafa",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontSize: "0.9rem",
+                    minHeight: 44,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.5rem",
+                    textAlign: "center",
+                    textDecoration: "none",
+                  }}
+                >
+                  <span>{label}</span>
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled={loadingTier !== null}
+                  aria-busy={busy}
+                  onClick={() => onSubscribe(tier)}
+                  style={{
+                    marginTop: "0.5rem",
+                    padding: "0.75rem 1rem",
+                    borderRadius: 11,
+                    border: isPopular ? "1px solid rgba(196, 181, 253, 0.35)" : "none",
+                    background: busy
+                      ? "rgba(255,255,255,0.12)"
+                      : isPopular
+                        ? "linear-gradient(145deg, #8b5cf6 0%, #6d28d9 45%, #5b21b6 100%)"
+                        : "linear-gradient(135deg, #7c3aed, #5b21b6)",
+                    boxShadow: busy
+                      ? "none"
+                      : isPopular
+                        ? "0 4px 20px rgba(124, 58, 237, 0.35), inset 0 1px 0 rgba(255,255,255,0.12)"
+                        : "0 4px 16px rgba(91, 33, 182, 0.25)",
+                    color: "#fff",
+                    fontWeight: 600,
+                    cursor: busy ? "wait" : "pointer",
+                    fontSize: "0.9rem",
+                    minHeight: 44,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  {busy ? (
+                    <svg
+                      width={16}
+                      height={16}
+                      viewBox="0 0 24 24"
+                      aria-hidden
+                      style={{ flexShrink: 0 }}
+                    >
+                      <title>Loading</title>
                       <circle
                         cx="12"
                         cy="12"
                         r="10"
                         fill="none"
-                        stroke="#fff"
+                        stroke="rgba(255,255,255,0.2)"
                         strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeDasharray="15.7 47.1"
                       />
-                    </g>
-                  </svg>
-                ) : null}
-                <span>{label}</span>
-              </button>
+                      <g>
+                        <animateTransform
+                          attributeName="transform"
+                          type="rotate"
+                          from="0 12 12"
+                          to="360 12 12"
+                          dur="0.75s"
+                          repeatCount="indefinite"
+                        />
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          fill="none"
+                          stroke="#fff"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeDasharray="15.7 47.1"
+                        />
+                      </g>
+                    </svg>
+                  ) : null}
+                  <span>{label}</span>
+                </button>
+              )}
             </article>
           );
         })}

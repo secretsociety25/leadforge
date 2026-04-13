@@ -49,6 +49,31 @@ html {
   }
 }
 
+/* L3 pipeline table — rows fade in as the workspace populates */
+@keyframes lf-l3-row-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.lf-l3-pipeline-row {
+  animation: lf-l3-row-in 0.48s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-l3-pipeline-row {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* LeadForge landing — kinetic hero + grid (CSS-only, Lighthouse-friendly) */
 @keyframes lf-kinetic-in {
   from {

@@ -15,7 +15,7 @@ const inter = Inter({
 const siteUrl = getSiteUrl();
 const siteName = "LeadForge by MTDFIX";
 const defaultDescription =
-  "Personalized B2B outbound that converts — LinkedIn research, AI drafts, verified deliverability.";
+  "Personalized B2B outbound that converts — Psychographic Manifold Synthesis, AI drafts, verified deliverability.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

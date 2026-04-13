@@ -3,18 +3,18 @@ import Link from "next/link";
 
 import { PricingPlans } from "@/app/pricing/pricing-plans";
 import { LogoutButton } from "@/components/logout-button";
-import { ANNUAL_MONTHS_CHARGED } from "@/lib/plans";
+import { AED_MONTHLY_MAJOR, ANNUAL_MONTHS_CHARGED } from "@/lib/plans";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "LeadForge plans from $79/mo — AI research, personalized drafts, and verified deliverability. Most teams choose Pro.",
+    "LeadForge tiers from The Intercept to The Sovereign — High-Value Signals, L3 depth, and enterprise-grade intelligence.",
   alternates: { canonical: "/pricing" },
   openGraph: {
     title: "Pricing — LeadForge by MTDFIX",
     description:
-      "Premium B2B outbound: Starter, Pro, and Enterprise. Replace manual research with AI.",
+      "Sovereign-grade outbound intelligence: Starter, Pro, and Enterprise. Retainers that match the work.",
     url: "/pricing",
   },
 };
@@ -167,7 +167,7 @@ export default async function PricingPage({
             Pricing
           </p>
           <h1 style={{ fontSize: "2.35rem", margin: "0 0 0.85rem", fontWeight: 700, letterSpacing: "-0.02em" }}>
-            Pipeline software that pays for itself
+            Intelligence retainers for serious outbound
           </h1>
           <p
             style={{
@@ -180,9 +180,9 @@ export default async function PricingPage({
               fontSize: "1.05rem",
             }}
           >
-            <strong style={{ color: "#f4f4f5" }}>Replace hours of manual research with AI.</strong>{" "}
-            <strong style={{ color: "#f4f4f5" }}>Better than hiring a junior SDR</strong> — always on,
-            on-brand, and built for B2B teams that care about deliverability.
+            <strong style={{ color: "#f4f4f5" }}>The Sovereign Guru stack</strong> — map High-Value
+            Signals, run depth where it matters, and keep the “how” behind the curtain. Pricing
+            matches the leverage, not the busywork.
           </p>
           <p
             style={{
@@ -198,7 +198,7 @@ export default async function PricingPage({
               letterSpacing: "0.02em",
             }}
           >
-            Most teams choose Pro — see why below
+            Pro · The Infiltrator — Priority L3 queue when the runway gets crowded
           </p>
           <p
             style={{
@@ -211,12 +211,20 @@ export default async function PricingPage({
               fontSize: "0.9rem",
             }}
           >
-            <strong style={{ color: "#fafafa" }}>Starter $79</strong>,{" "}
-            <strong style={{ color: "#fafafa" }}>Pro $149</strong>,{" "}
-            <strong style={{ color: "#fafafa" }}>Enterprise $349</strong> / month USD list · Annual
-            billing = {ANNUAL_MONTHS_CHARGED} months (two months on us). Pay in{" "}
-            <strong style={{ color: "#fafafa" }}>AED</strong>, <strong style={{ color: "#fafafa" }}>GBP</strong>
-            , or <strong style={{ color: "#fafafa" }}>EUR</strong> at checkout (Ziina).
+            <strong style={{ color: "#fafafa" }}>
+              {AED_MONTHLY_MAJOR.starter.toLocaleString("en-US")} AED
+            </strong>{" "}
+            ·{" "}
+            <strong style={{ color: "#fafafa" }}>
+              {AED_MONTHLY_MAJOR.pro.toLocaleString("en-US")} AED
+            </strong>{" "}
+            ·{" "}
+            <strong style={{ color: "#fafafa" }}>12,000+ AED</strong> / month list (UAE) · USD list
+            approximates for GBP/EUR. Annual = {ANNUAL_MONTHS_CHARGED} months charged (two on us). Pay
+            in <strong style={{ color: "#fafafa" }}>AED</strong>,{" "}
+            <strong style={{ color: "#fafafa" }}>GBP</strong>, or{" "}
+            <strong style={{ color: "#fafafa" }}>EUR</strong> at checkout (Ziina). Enterprise opens
+            via inquiry.
           </p>
         </header>
 

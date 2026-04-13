@@ -5,11 +5,13 @@ import Papa from "papaparse";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const FEED_LINES = [
+  "[L3] Mapping Social Graph...",
+  "[SIGINT] Intercepting Market Signals...",
+  "[NEURAL] Warming Psychographic Manifold...",
+  "[L3] Synthesizing Executive Intent...",
   "[L3] Session handshake OK · vector dim 3072",
   "[INGEST] Parsing Prospeo schema · columns matched: 14/14",
-  "[NEURAL] Cluster δ-9 · psychographic manifold warming…",
   "[SIGINT] Pulling 10-K §1A · risk lexicon score 0.74",
-  "[LINKED] Graph walk depth=3 · decision-maker proximity 0.91",
   "[L3] Cross-encoding pain signals vs. ICP template v4",
   "[NEURAL] Attention heads · business pain hypothesis #2 rising",
   "[SIGINT] Earnings call Q3 · “efficiency” mentions +340%",
@@ -28,45 +30,6 @@ type PipelineRow = {
   score: string;
   status: string;
 };
-
-const DEMO_LEADS: PipelineRow[] = [
-  {
-    id: "demo-1",
-    name: "Elena Whitmore",
-    company: "Northbridge Analytics",
-    email: "",
-    linkedinUrl: "",
-    score: "94",
-    status: "L3 Complete",
-  },
-  {
-    id: "demo-2",
-    name: "Marcus Chen",
-    company: "Helix Cloud Systems",
-    email: "",
-    linkedinUrl: "",
-    score: "88",
-    status: "Scoring",
-  },
-  {
-    id: "demo-3",
-    name: "Priya Desai",
-    company: "Vertex Manufacturing",
-    email: "",
-    linkedinUrl: "",
-    score: "91",
-    status: "L3 Complete",
-  },
-  {
-    id: "demo-4",
-    name: "James Okafor",
-    company: "Cairn Financial",
-    email: "",
-    linkedinUrl: "",
-    score: "76",
-    status: "Queued",
-  },
-];
 
 function normHeader(s: string) {
   return s.trim().toLowerCase().replace(/\s+/g, " ");
@@ -179,8 +142,10 @@ function initialAmbientFeedLines(): string[] {
 export function L3ResearchTerminal() {
   const [dragActive, setDragActive] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [rows, setRows] = useState<PipelineRow[]>(DEMO_LEADS);
-  const [tableSource, setTableSource] = useState<"demo" | "csv">("demo");
+  const [rows, setRows] = useState<PipelineRow[]>([]);
+  /** Bumps when a successful CSV load populates the table so row fade animations replay. */
+  const [pipelineGeneration, setPipelineGeneration] = useState(0);
+  const [tableSource, setTableSource] = useState<"idle" | "csv">("idle");
   /** Single source of truth for Neural Feed — every line is rendered from this array. */
   const [feedLines, setFeedLines] = useState<string[]>([]);
   const [feedPhase, setFeedPhase] = useState<"ambient" | "extraction" | "mission">("ambient");
@@ -192,6 +157,8 @@ export function L3ResearchTerminal() {
   /** After a successful L3 CSV run, ambient logs stay off for the session. */
   const ambientFrozenAfterL3Ref = useRef(false);
   const processRunIdRef = useRef(0);
+  /** Invalidates delayed table population if the user starts another ingest. */
+  const ingestSessionRef = useRef(0);
 
   const formatFeedLine = useCallback((content: string) => formatAmbientLine(content), []);
 
@@ -212,7 +179,7 @@ export function L3ResearchTerminal() {
 
   const ambientPrimedRef = useRef(false);
 
-  /** Ambient “search” stream — seed + prime on client only so timestamps match (no SSR/client mismatch). */
+  /** Ambient feed stream — seed + prime on client only so timestamps match (no SSR/client mismatch). */
   useEffect(() => {
     if (ambientPrimedRef.current || ambientFrozenAfterL3Ref.current) return;
     ambientPrimedRef.current = true;
@@ -295,6 +262,11 @@ export function L3ResearchTerminal() {
   const ingestFile = useCallback(
     (file: File) => {
       processRunIdRef.current += 1;
+      ingestSessionRef.current += 1;
+      const ingestSession = ingestSessionRef.current;
+      setDossierLead(null);
+      setRows([]);
+      setTableSource("idle");
       setFileName(file.name);
       setMissionReveal(false);
       setFeedPhase("extraction");
@@ -335,15 +307,22 @@ export function L3ResearchTerminal() {
           }
 
           if (mapped.length === 0) {
-            appendFeed("[ERR] Could not map Full Name / Email / LinkedIn columns");
+            appendFeed("[ERR] Could not map required identity columns (name / email / profile URL)");
             if (!ambientFrozenAfterL3Ref.current) pauseRandomFeedRef.current = false;
             setFeedPhase("ambient");
             return;
           }
 
-          setTableSource("csv");
-          setRows(mapped);
-          void runRowPipeline(mapped);
+          appendFeed(
+            `[INGEST] ${mapped.length} contact(s) validated — commencing L3 neural extraction…`,
+          );
+          window.setTimeout(() => {
+            if (ingestSession !== ingestSessionRef.current) return;
+            setPipelineGeneration((g) => g + 1);
+            setTableSource("csv");
+            setRows(mapped);
+            void runRowPipeline(mapped);
+          }, 64);
         },
         error: (err) => {
           appendFeed(`[ERR] Parse failed · ${err.message}`);
@@ -475,7 +454,7 @@ export function L3ResearchTerminal() {
                 <span className="text-violet-300/90">.csv</span> here
               </p>
               <p className="mt-2 max-w-xs text-center text-xs leading-relaxed text-zinc-500">
-                Parsed in-browser with Papa Parse — maps Full Name, Email, LinkedIn URL.
+                Parsed in-browser with Papa Parse — maps Full Name, Email, and profile URL.
               </p>
               {fileName ? (
                 <p className="mt-6 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.07] px-4 py-2 text-xs font-mono text-emerald-300/95">
@@ -486,14 +465,14 @@ export function L3ResearchTerminal() {
           </section>
 
           {/* Neural feed */}
-          <section aria-label="Neural research feed">
+          <section aria-label="Neural feed — Psychographic Manifold Synthesis">
             <div className="mb-3 flex items-baseline justify-between gap-2">
               <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-violet-300/90">
                 Neural Feed
               </h2>
               <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">
                 {feedPhase === "ambient"
-                  ? "Ambient search"
+                  ? "Ambient channel"
                   : feedPhase === "extraction"
                     ? "Real-time extraction"
                     : "L3 channel"}
@@ -561,83 +540,91 @@ export function L3ResearchTerminal() {
               className={`rounded-md border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${
                 tableSource === "csv"
                   ? "border-emerald-500/25 bg-emerald-500/[0.08] text-emerald-300/90"
-                  : "border-indigo-500/20 bg-indigo-500/[0.06] text-violet-300/80"
+                  : "border-zinc-600/40 bg-zinc-900/60 text-zinc-500"
               }`}
             >
-              {tableSource === "csv" ? "Loaded" : "Demo"}
+              {tableSource === "csv" ? "Loaded" : "Awaiting import"}
             </span>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-indigo-500/20 bg-black/60 shadow-[0_0_0_1px_rgba(99,102,241,0.08)]">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-indigo-500/15 bg-zinc-950/90">
-                    <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                      Lead Name
-                    </th>
-                    <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                      Company
-                    </th>
-                    <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                      Psychographic Score
-                    </th>
-                    <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                      L3 Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-indigo-500/10">
-                  {rows.map((row) => (
-                    <tr
-                      key={row.id}
-                      role="button"
-                      tabIndex={0}
-                      className={rowHoverClass}
-                      title={
-                        [row.email, row.linkedinUrl].filter(Boolean).join(" · ") || undefined
-                      }
-                      onClick={() => setDossierLead(row)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          setDossierLead(row);
-                        }
-                      }}
-                    >
-                      <td className="whitespace-nowrap px-5 py-4 font-medium text-zinc-100">{row.name}</td>
-                      <td className="max-w-[200px] truncate px-5 py-4 text-zinc-400" title={row.company}>
-                        {row.company}
-                      </td>
-                      <td className="whitespace-nowrap px-5 py-4 tabular-nums">
-                        {row.score === "—" ? (
-                          <span className="text-zinc-600">—</span>
-                        ) : (
-                          <>
-                            <span className="text-violet-300/95">{row.score}</span>
-                            <span className="text-zinc-600"> /100</span>
-                          </>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-5 py-4">
-                        <span
-                          className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-                            row.status === "L3 Complete"
-                              ? "border-emerald-500/35 bg-emerald-500/[0.08] text-emerald-300/95"
-                              : row.status === "Scoring" || row.status === "Scanning…"
-                                ? "border-violet-500/35 bg-violet-500/[0.08] text-violet-200/90"
-                                : "border-zinc-600/50 bg-zinc-900/80 text-zinc-400"
-                          }`}
-                        >
-                          {row.status}
-                        </span>
-                      </td>
+          {rows.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-zinc-700/55 bg-zinc-950/35 px-5 py-10 text-center text-sm leading-relaxed text-zinc-500">
+              L3 pipeline stays hidden until a Prospeo <span className="text-zinc-400">.csv</span>{" "}
+              parses successfully and neural extraction begins — then rows populate below.
+            </p>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-indigo-500/20 bg-black/60 shadow-[0_0_0_1px_rgba(99,102,241,0.08)]">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-indigo-500/15 bg-zinc-950/90">
+                      <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                        Lead Name
+                      </th>
+                      <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                        Company
+                      </th>
+                      <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                        Psychographic Score
+                      </th>
+                      <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                        L3 Status
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-indigo-500/10">
+                    {rows.map((row, rowIndex) => (
+                      <tr
+                        key={`${pipelineGeneration}-${row.id}`}
+                        role="button"
+                        tabIndex={0}
+                        className={`${rowHoverClass} lf-l3-pipeline-row`}
+                        style={{ animationDelay: `${rowIndex * 72}ms` }}
+                        title={
+                          [row.email, row.linkedinUrl].filter(Boolean).join(" · ") || undefined
+                        }
+                        onClick={() => setDossierLead(row)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setDossierLead(row);
+                          }
+                        }}
+                      >
+                        <td className="whitespace-nowrap px-5 py-4 font-medium text-zinc-100">{row.name}</td>
+                        <td className="max-w-[200px] truncate px-5 py-4 text-zinc-400" title={row.company}>
+                          {row.company}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-4 tabular-nums">
+                          {row.score === "—" ? (
+                            <span className="text-zinc-600">—</span>
+                          ) : (
+                            <>
+                              <span className="text-violet-300/95">{row.score}</span>
+                              <span className="text-zinc-600"> /100</span>
+                            </>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-4">
+                          <span
+                            className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                              row.status === "L3 Complete"
+                                ? "border-emerald-500/35 bg-emerald-500/[0.08] text-emerald-300/95"
+                                : row.status === "Scoring" || row.status === "Scanning…"
+                                  ? "border-violet-500/35 bg-violet-500/[0.08] text-violet-200/90"
+                                  : "border-zinc-600/50 bg-zinc-900/80 text-zinc-400"
+                            }`}
+                          >
+                            {row.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
         </section>
       </div>
 
@@ -696,7 +683,7 @@ export function L3ResearchTerminal() {
                   Generated outreach hook
                 </p>
                 <div className="mt-2 rounded-xl border border-indigo-500/20 bg-black/50 p-4 font-mono text-[13px] leading-relaxed text-zinc-200 shadow-inner shadow-black/40">
-                  <p className="text-[0.6rem] font-sans uppercase tracking-wider text-zinc-600">LinkedIn · draft</p>
+                  <p className="text-[0.6rem] font-sans uppercase tracking-wider text-zinc-600">Primary channel · draft</p>
                   <p className="mt-2 whitespace-pre-wrap text-zinc-100/95">
                     {outreachHookDraft(dossierLead)}
                   </p>

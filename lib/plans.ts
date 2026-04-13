@@ -24,7 +24,7 @@ export const CURRENCY_TAB: Record<
   EUR: { code: "EUR", title: "Euro area", hint: "Euro" },
 };
 
-/** USD / month list prices (source of truth). Local currencies use FX approximation at checkout. */
+/** USD / month list prices — used for GBP/EUR FX approximation at checkout. */
 export const PAID_TIER_USD_MONTHLY: Record<PaidTier, number> = {
   starter: 79,
   pro: 149,
@@ -32,11 +32,20 @@ export const PAID_TIER_USD_MONTHLY: Record<PaidTier, number> = {
 };
 
 /**
- * Approximate USD → local major unit (whole numbers, marketing-friendly).
- * Tune rates as needed.
+ * AED monthly list prices (whole dirhams). Shown and charged when currency is AED — overrides USD×FX.
  */
-const USD_TO_MONTHLY_MAJOR: Record<SupportedCurrency, (usd: number) => number> = {
-  AED: (usd) => Math.round(usd * 3.67),
+/** AED monthly list prices (dirhams) — used for AED checkout and on-card copy when currency is AED. */
+export const AED_MONTHLY_MAJOR: Record<PaidTier, number> = {
+  starter: 2500,
+  pro: 5500,
+  enterprise: 12_000,
+};
+
+/**
+ * Approximate USD → local major unit (whole numbers, marketing-friendly).
+ * AED uses {@link AED_MONTHLY_MAJOR} instead.
+ */
+const USD_TO_MONTHLY_MAJOR: Record<Exclude<SupportedCurrency, "AED">, (usd: number) => number> = {
   GBP: (usd) => Math.round(usd * 0.776),
   EUR: (usd) => Math.round(usd * 0.918),
 };
@@ -79,6 +88,9 @@ export function isSupportedCurrency(c: string): c is SupportedCurrency {
 }
 
 function monthlyMajorUnits(tier: PaidTier, currency: SupportedCurrency): number {
+  if (currency === "AED") {
+    return AED_MONTHLY_MAJOR[tier];
+  }
   return USD_TO_MONTHLY_MAJOR[currency](PAID_TIER_USD_MONTHLY[tier]);
 }
 
@@ -100,7 +112,7 @@ export function formatPriceDisplay(
 ): string {
   if (currency === "AED") {
     if (Number.isInteger(majorUnits)) {
-      return `${majorUnits} AED`;
+      return `${majorUnits.toLocaleString("en-US")} AED`;
     }
     return `${majorUnits.toFixed(2)} AED`;
   }
@@ -154,13 +166,19 @@ export function getTierPricing(
   };
 }
 
-/** Card headline price (same as getTierPricing().displayAmount). */
+/** Card headline price (same as getTierPricing().displayAmount, with tier-specific marketing tweaks). */
 export function formatTierMoney(
   tier: PaidTier,
   isAnnual: boolean,
   currency: SupportedCurrency,
 ): string {
-  return getTierPricing(tier, isAnnual, currency).displayAmount;
+  const p = getTierPricing(tier, isAnnual, currency);
+  if (tier === "enterprise" && currency === "AED") {
+    const major = majorUnitsForPlan(tier, isAnnual, currency);
+    const n = major.toLocaleString("en-US");
+    return `${n}+ AED`;
+  }
+  return p.displayAmount;
 }
 
 /**
@@ -192,30 +210,43 @@ export const PAID_TIER_DISPLAY: Record<
     name: string;
     description: string;
     highlights: string[];
-    /** Shown on pricing cards as the lead-volume headline */
+    /** Shown on pricing cards as the signal-volume headline */
     leadVolumeLabel: string;
   }
 > = {
   starter: {
-    name: "Starter",
+    name: "Starter · The Intercept",
     description:
-      "Replace hours of manual research with AI — consistent pipeline work without adding headcount.",
-    leadVolumeLabel: "500 leads / month",
-    highlights: ["5 campaigns", "CSV enrichment & AI drafts", "Email support"],
+      "Entry sovereignty — map the field, qualify fast, and keep your edge without exposing how the engine thinks.",
+    leadVolumeLabel: "500 High-Value Signals / month",
+    highlights: [
+      "5 campaigns",
+      "Neural Social-Graph Mapping & AI drafts",
+      "Dedicated Signal Analyst",
+    ],
   },
   pro: {
-    name: "Pro",
+    name: "Pro · The Infiltrator",
     description:
-      "Better than hiring a junior SDR: always-on research, 1:1 drafts, and scale that matches revenue.",
-    leadVolumeLabel: "2,500 leads / month",
-    highlights: ["25 campaigns", "Priority support", "Best value for serious outbound"],
+      "Operational depth for teams that run outbound as a system — scale, priority, and room to win in crowded inboxes.",
+    leadVolumeLabel: "2,500 High-Value Signals / month",
+    highlights: [
+      "Priority L3 Queue Access",
+      "25 campaigns",
+      "Priority support",
+      "Built for serious outbound volume",
+    ],
   },
   enterprise: {
-    name: "Enterprise",
+    name: "Enterprise · The Sovereign",
     description:
-      "Maximum throughput for teams where pipeline is the business — volume, control, and room to grow.",
-    leadVolumeLabel: "10,000 leads / month",
-    highlights: ["100 campaigns", "Dedicated success", "Volume-ready infrastructure"],
+      "Custom intelligence and throughput for orgs where pipeline is the business — governance, control, and bespoke playbooks.",
+    leadVolumeLabel: "10,000+ High-Value Signals / month",
+    highlights: [
+      "100 campaigns",
+      "Dedicated success & bespoke workflows",
+      "Volume-ready infrastructure",
+    ],
   },
 };
 

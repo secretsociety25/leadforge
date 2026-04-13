@@ -15,7 +15,7 @@ import { MarketingSiteHeader } from "@/components/marketing/marketing-site-heade
 export const metadata: Metadata = {
   title: "LeadForge by MTDFIX — Outbound That Actually Converts",
   description:
-    "LinkedIn research, 1:1 AI email drafts, and verified deliverability. Stop spray-and-pray. Launch the engine.",
+    "Psychographic Manifold Synthesis, 1:1 AI email drafts, and verified deliverability. Stop spray-and-pray. Launch the engine.",
 };
 
 const pillars = [
@@ -62,8 +62,8 @@ export default function HomePage() {
               Outbound That Actually Converts.
             </h1>
             <p className="lf-kinetic-3 mx-auto mt-6 max-w-2xl text-pretty text-base leading-relaxed text-zinc-400 sm:text-lg">
-              Stop the &apos;Spray and Pray&apos;. LeadForge researches every prospect on LinkedIn and writes
-              1:1 personalized emails that bypass spam filters and land meetings.
+              Stop the &apos;Spray and Pray&apos;. LeadForge applies Psychographic Manifold Synthesis to every
+              prospect and writes 1:1 personalized emails that bypass spam filters and land meetings.
             </p>
             <div className="lf-kinetic-4 mt-10 flex flex-col items-center justify-center gap-3">
               <div className="flex w-full max-w-lg flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
@@ -120,7 +120,7 @@ export default function HomePage() {
               Live pipeline
             </h2>
             <p className="mt-2 text-slate-400">
-              Real UI — research signals and drafts as they flow through the engine.
+              Real UI — Psychographic Manifold Synthesis traces and drafts as they flow through the engine.
             </p>
           </div>
 
