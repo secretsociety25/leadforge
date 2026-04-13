@@ -3,6 +3,7 @@
 import {
   CreditCard,
   ExternalLink,
+  Globe,
   LayoutDashboard,
   Megaphone,
   Radar,
@@ -40,6 +41,7 @@ export function DashboardSidebar({
   const pathname = usePathname();
   const onDashboard = pathname === "/dashboard";
   const onSignal = pathname === "/dashboard/signal-discovery";
+  const onMarketMapping = pathname === "/dashboard/market-mapping";
   const onInfra = pathname === "/dashboard/infrastructure";
   const onUpload = pathname === "/dashboard/upload";
   const onLeads = pathname === "/dashboard/leads";
@@ -65,6 +67,10 @@ export function DashboardSidebar({
         <Link href="/dashboard/signal-discovery" className={navClass(onSignal)} scroll={false}>
           <Radar className="size-4 shrink-0 opacity-90" aria-hidden />
           Signal Discovery
+        </Link>
+        <Link href="/dashboard/market-mapping" className={navClass(onMarketMapping)} scroll={false}>
+          <Globe className="size-4 shrink-0 opacity-90" aria-hidden />
+          Market Mapping
         </Link>
         <Link href="/dashboard/infrastructure" className={navClass(onInfra)} scroll={false}>
           <Server className="size-4 shrink-0 opacity-90" aria-hidden />

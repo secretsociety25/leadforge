@@ -3,6 +3,10 @@
 import { Loader2, Radar, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { TrustBadge, type TrustTier } from "@/components/dashboard/trust-badge";
+
+export type { TrustTier };
+
 export type SignalLeadRow = {
   id: string;
   name: string;
@@ -31,34 +35,7 @@ const SOVEREIGN_SEQUENCE = [
 const rowHoverClass =
   "transition-[background-color,box-shadow] duration-200 hover:bg-indigo-500/[0.08] hover:shadow-[inset_0_0_0_1px_rgba(99,102,241,0.22),0_0_24px_-8px_rgba(79,70,229,0.35)]";
 
-export type TrustTier = "verified" | "likely_match" | "unverified";
-
 export type WebPresenceTier = TrustTier | "pending" | "not_found";
-
-function TrustBadge({ tier }: { tier: TrustTier }) {
-  const cfg =
-    tier === "verified"
-      ? {
-          label: "Verified",
-          cls: "border-emerald-500/40 bg-emerald-500/[0.1] text-emerald-300/95",
-        }
-      : tier === "likely_match"
-        ? {
-            label: "Likely match",
-            cls: "border-amber-500/40 bg-amber-500/[0.12] text-amber-200/95",
-          }
-        : {
-            label: "Unverified",
-            cls: "border-zinc-600/50 bg-zinc-800/50 text-zinc-400",
-          };
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${cfg.cls}`}
-    >
-      {cfg.label}
-    </span>
-  );
-}
 
 const NEURAL_SYNTHESIS_LINES = [
   "[NEURAL] Bootstrapping Psychographic Manifold v4.2…",
