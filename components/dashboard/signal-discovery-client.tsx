@@ -21,34 +21,6 @@ const SOVEREIGN_SEQUENCE = [
   "[SYNC] Populating L3 Pipeline...",
 ] as const;
 
-function buildPlaceholderLeads(location: string): SignalLeadRow[] {
-  const loc = location.trim() || "United Kingdom";
-  const base = [
-    ["John Doe", "Axiom Quant Systems Ltd", "Chief Technology Officer", loc],
-    ["Charlotte Webb", "Meridian Analytics", "Chief Revenue Officer", loc],
-    ["James Okonkwo", "Northwind Systems", "VP Operations", loc],
-    ["Priya Shah", "Helix Cloud Labs", "Head of Growth", loc],
-    ["Oliver Grant", "Sterling Capital Partners", "Managing Director", loc],
-    ["Elena Vasquez", "Atlas Manufacturing", "COO", loc],
-    ["Thomas Byrne", "Cobalt Freight", "Director of Procurement", loc],
-  ];
-  return base.map(([name, company, role, locLabel], i) => ({
-    id: `sig-${i}-${name.replace(/\s+/g, "-").toLowerCase()}`,
-    name,
-    company,
-    role,
-    location: locLabel,
-    score: String(78 + ((i * 3) % 20)),
-    status: "L3 Complete",
-    sources:
-      String(name).trim().toLowerCase() === "john doe"
-        ? ["companies_house", "job_board", "verified_email"]
-        : i % 3 === 0
-          ? ["companies_house"]
-          : ["verified_email"],
-  }));
-}
-
 const rowHoverClass =
   "transition-[background-color,box-shadow] duration-200 hover:bg-indigo-500/[0.08] hover:shadow-[inset_0_0_0_1px_rgba(99,102,241,0.22),0_0_24px_-8px_rgba(79,70,229,0.35)]";
 
@@ -91,7 +63,7 @@ function signalCertaintyLabel(bars: 1 | 2 | 3): string {
 const JOHN_DOE_CLASSIFIED_DOSSIER_HTML: DossierSections = {
   psychographic: `<p>Executive presents as systems-first, risk-aware, and visibly fatigued by “vendor theatre.” Public footprint (conference Q&amp;As, podcast cadence, and authored posts) clusters around deterministic engineering, latency budgets, and model governance — not growth hacks. Decision style is evidence-led: prefers quantified trade-offs, dislikes ambiguous ROI narratives, and delegates vendor screening to architecture + security pairs before procurement engages.</p><p>Signal graph indicates high conscientiousness and low tolerance for ambiguity under load: comms spike during release windows and regulatory filing periods, with sentiment cooling when roadmap promises outpace delivery reality. Peer-network edges show repeated co-attendance with heads of platform and CISO-adjacent leaders — a strong indicator that technical credibility and operational safety are gating factors, not price alone.</p><p>Psychographic composite (L3): “Sovereign operator” archetype — wants leverage without loss of control; receptive to bespoke workflows that sit behind their perimeter; allergic to black-box claims. Optimal framing: co-designed deployment, measurable SLOs, and a narrative that respects their mandate to protect customer data and model integrity.</p>`,
 
-  operational: `<p>Axiom Quant Systems is mid-scale, UK-headquartered, and operating a hybrid estate (Kubernetes + regulated data zones) with a growing ML inference surface. Hiring signals show open roles for platform reliability, data governance, and MLOps-adjacent engineers — consistent with pipeline congestion between research prototypes and production-grade serving.</p><p>Primary bottlenecks inferred: (1) <strong>release throughput</strong> constrained by manual review gates and inconsistent environments; (2) <strong>observability debt</strong> — metrics exist, but cross-team causal tracing for model drift and latency regressions is fragmented; (3) <strong>vendor sprawl</strong> in the GTM stack creating duplicate records and weakening account-level truth; (4) <strong>security review cycles</strong> lengthening procurement for anything touching client portfolios.</p><p>These friction points are not “culture problems” — they are coordination and instrumentation problems. The organisation is trying to scale intelligence products without scaling operational risk. Any partner narrative must map cleanly to SRE/SLO language, change-management discipline, and an explicit rollback posture.</p>`,
+  operational: `<p>The organisation is mid-scale, UK-headquartered, and operating a hybrid estate (Kubernetes + regulated data zones) with a growing ML inference surface. Hiring signals typically surface around platform reliability, data governance, and MLOps-adjacent roles — consistent with pipeline congestion between research prototypes and production-grade serving.</p><p>Primary bottlenecks inferred: (1) <strong>release throughput</strong> constrained by manual review gates and inconsistent environments; (2) <strong>observability debt</strong> — metrics exist, but cross-team causal tracing for model drift and latency regressions is fragmented; (3) <strong>vendor sprawl</strong> in the revenue stack creating duplicate records and weakening account-level truth; (4) <strong>security review cycles</strong> lengthening procurement for anything touching sensitive data.</p><p>These friction points are not “culture problems” — they are coordination and instrumentation problems. The organisation is trying to scale intelligence products without scaling operational risk. Any partner narrative must map cleanly to SRE/SLO language, change-management discipline, and an explicit rollback posture.</p>`,
 
   outreach: `<p>Open with a <strong>constraint-led hook</strong> tied to release risk or governance, not product features. Reference a credible operational scenario (e.g., “latency regressions after a model promotion” or “audit readiness for a tier-1 client”) and offer a <strong>narrow diagnostic</strong> — not a demo.</p><p>Recommended motion: a 30-minute “signal alignment” working session with a solution architect + security liaison, outcome-defined (e.g., map three integration points and one measurable success criterion). Avoid ROI superlatives; instead propose a phased path: instrument → harden → expand, with exit criteria at each gate.</p><p>Tone: crisp, British English, no hype adjectives. Close with a single ask: permission to share a one-page architecture sketch tailored to their stated constraints (not a generic deck). If no reply, follow with a <strong>high-signal nudge</strong> referencing a public artifact (talk, paper, hiring post) to prove the outreach was researched — not sequenced.</p>`,
 
@@ -115,6 +87,7 @@ export function SignalDiscoveryClient() {
   const [leads, setLeads] = useState<SignalLeadRow[]>([]);
   const [discoveryLoading, setDiscoveryLoading] = useState(false);
   const [discoveryLog, setDiscoveryLog] = useState<string[]>([]);
+  const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [intelLead, setIntelLead] = useState<SignalLeadRow | null>(null);
   const [intelOpen, setIntelOpen] = useState(false);
   const [intelLoading, setIntelLoading] = useState(false);
@@ -150,6 +123,7 @@ export function SignalDiscoveryClient() {
   const runMapping = useCallback(async () => {
     setLeads([]);
     setDiscoveryLog([]);
+    setDiscoveryError(null);
     setSovereignIndex(0);
     setPhase("sovereign");
     setDiscoveryLoading(true);
@@ -182,14 +156,14 @@ export function SignalDiscoveryClient() {
       const code = e instanceof Error ? e.message : "Discovery failed";
       if (code === "INVALID_API_KEY") {
         appendDiscoveryLog("[ERR] INVALID API KEY");
+        setDiscoveryError("INVALID API KEY");
       } else if (code === "UK_GOV_RATE_LIMIT_REACHED") {
         appendDiscoveryLog("[ERR] UK GOV RATE LIMIT REACHED");
+        setDiscoveryError("UK GOV RATE LIMIT REACHED");
       } else {
         appendDiscoveryLog(`[ERR] ${code}`);
+        setDiscoveryError(String(code));
       }
-      // Fallback to placeholders so the demo stays alive even if the upstream API is rate-limited.
-      const next = buildPlaceholderLeads(location);
-      setLeads(next);
       setPhase("done");
     } finally {
       setDiscoveryLoading(false);
@@ -415,8 +389,21 @@ export function SignalDiscoveryClient() {
 
           {leads.length === 0 ? (
             <p className="rounded-xl border border-dashed border-zinc-700/55 bg-zinc-950/35 px-5 py-12 text-center text-sm leading-relaxed text-zinc-500">
-              Run <span className="text-zinc-400">Begin Market Mapping</span> to execute the sovereign
-              sequence and populate this table with mapped decision-makers.
+              {discoveryError ? (
+                <>
+                  <span className="font-semibold text-red-300">{discoveryError}</span>
+                  <span className="mt-2 block text-xs text-zinc-500">
+                    Signal Discovery only populates from the UK registry bridge at{" "}
+                    <span className="font-mono text-zinc-400">/api/discovery</span>.
+                  </span>
+                </>
+              ) : (
+                <>
+                  Run <span className="text-zinc-400">Map Market</span> to execute the sovereign
+                  sequence and populate this table with UK registry companies created in the last 7
+                  days.
+                </>
+              )}
             </p>
           ) : (
             <div className="overflow-hidden rounded-2xl border border-indigo-500/20 bg-black/60 shadow-[0_0_0_1px_rgba(99,102,241,0.08)]">
